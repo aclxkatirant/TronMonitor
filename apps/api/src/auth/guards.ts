@@ -5,6 +5,7 @@ import { PermissionsService } from '../permissions/permissions.service';
 import type { PermissionKey } from '../permissions/permission-catalog';
 import { IS_PUBLIC_KEY, REQUIRED_PERMISSIONS_KEY } from './decorators';
 import { SessionService } from './session.service';
+import { ApiTokensService } from '../api-tokens/api-tokens.service';
 import {
   CSRF_HEADER_NAME,
   CSRF_HEADER_VALUE,
@@ -24,6 +25,7 @@ export class SessionAuthGuard implements CanActivate {
     private readonly reflector: Reflector,
     private readonly sessions: SessionService,
     private readonly permissions: PermissionsService,
+    private readonly apiTokens: ApiTokensService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -57,6 +59,23 @@ export class SessionAuthGuard implements CanActivate {
         return true;
       }
       if (!isPublic) throw AppError.unauthorized('AUTH_SESSION_EXPIRED');
+    }
+
+    // API belirteci: Bearer başlığı. Çerez taşımadığından CSRF denetimi gerekmez.
+    const authorization = request.header('authorization');
+    if (authorization?.startsWith('Bearer tmk_')) {
+      const validated = await this.apiTokens.validate(authorization.slice('Bearer '.length).trim());
+      if (!validated) throw AppError.unauthorized('API_TOKEN_INVALID');
+      request.user = {
+        id: validated.user.id,
+        email: validated.user.email,
+        fullName: validated.user.fullName,
+        role: validated.user.role,
+        permissions: validated.permissions,
+        authMethod: 'api_token',
+        apiTokenId: validated.token.id,
+      };
+      return true;
     }
 
     if (isPublic) return true;

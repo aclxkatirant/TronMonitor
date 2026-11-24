@@ -5,6 +5,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math/rand"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"github.com/aclxkatirant/TronMonitor/agent/internal/buildinfo"
 	"github.com/aclxkatirant/TronMonitor/agent/internal/collect"
 	"github.com/aclxkatirant/TronMonitor/agent/internal/config"
+	"github.com/aclxkatirant/TronMonitor/agent/internal/services"
 	"github.com/aclxkatirant/TronMonitor/agent/internal/sysinfo"
 )
 
@@ -23,6 +25,7 @@ const (
 	minBackoff         = 5 * time.Second
 	maxBackoff         = 5 * time.Minute
 	revokedRetry       = 10 * time.Minute
+	servicesInterval   = 60 * time.Second
 )
 
 // Agent çalışma zamanı durumunu tutar.
@@ -55,7 +58,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	a.lastHost = sysinfo.Collect(ctx)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		a.heartbeatLoop(ctx)
@@ -63,6 +66,10 @@ func (a *Agent) Run(ctx context.Context) error {
 	go func() {
 		defer wg.Done()
 		a.metricsLoop(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		a.servicesLoop(ctx)
 	}()
 	wg.Wait()
 	a.log.Info("ajan durduruldu")
@@ -141,6 +148,86 @@ func (a *Agent) sendHeartbeat(ctx context.Context) {
 		}
 	}
 	a.log.Debug("heartbeat gönderildi", "serverTime", resp.ServerTime)
+	for _, cmd := range resp.Commands {
+		a.executeCommand(ctx, cmd)
+	}
+}
+
+// servicesLoop hizmet listesini düzenli aralıklarla raporlar.
+func (a *Agent) servicesLoop(ctx context.Context) {
+	// İlk rapor kısa bir gecikmeyle gönderilir; böylece heartbeat önce gider.
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(5 * time.Second):
+	}
+	for {
+		a.reportServices(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(jitter(servicesInterval)):
+		}
+	}
+}
+
+func (a *Agent) reportServices(ctx context.Context) {
+	if a.isRevoked() {
+		return
+	}
+	callCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	list, err := services.List(callCtx)
+	if err != nil {
+		if errors.Is(err, services.ErrUnsupported) {
+			return
+		}
+		a.log.Warn("hizmetler listelenemedi", "error", err)
+		return
+	}
+	items := make([]api.ServiceItem, 0, len(list))
+	for _, s := range list {
+		items = append(items, api.ServiceItem{Name: s.Name, DisplayName: s.DisplayName, State: string(s.State), StartupType: s.StartupType, IsEnabled: s.IsEnabled})
+	}
+	resp, err := a.client.ReportServices(callCtx, api.ServiceReport{Services: items})
+	if err != nil {
+		a.handleError("services", err)
+		return
+	}
+	a.log.Debug("hizmetler raporlandı", "count", len(items), "accepted", resp.Accepted)
+}
+
+// executeCommand merkezden gelen komutu yalnızca bilinen türlerde ve doğrulanmış parametrelerle çalıştırır.
+func (a *Agent) executeCommand(ctx context.Context, cmd api.AgentCommand) {
+	result := api.CommandResultRequest{OK: false}
+	switch cmd.Type {
+	case "service.start", "service.stop", "service.restart":
+		name := cmd.Payload["serviceName"]
+		action := services.Action(cmd.Type[len("service."):])
+		a.log.Info("hizmet komutu alındı", "id", cmd.ID, "type", cmd.Type, "service", name)
+		cmdCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+		err := services.Control(cmdCtx, name, action)
+		cancel()
+		if err != nil {
+			result.Message = err.Error()
+			a.log.Warn("hizmet komutu başarısız", "id", cmd.ID, "error", err)
+		} else {
+			result.OK = true
+			result.Message = fmt.Sprintf("%s: %s tamamlandı", name, action)
+		}
+	default:
+		result.Message = "desteklenmeyen komut türü: " + cmd.Type
+		a.log.Warn("bilinmeyen komut yok sayıldı", "id", cmd.ID, "type", cmd.Type)
+	}
+	callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	if err := a.client.ReportCommandResult(callCtx, cmd.ID, result); err != nil {
+		a.log.Warn("komut sonucu bildirilemedi", "id", cmd.ID, "error", err)
+	}
+	if result.OK {
+		// Hizmet durumu değişti; listeyi hemen yenile.
+		a.reportServices(ctx)
+	}
 }
 
 func (a *Agent) enqueue(sample api.MetricSample) {

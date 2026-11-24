@@ -136,10 +136,42 @@ type HeartbeatRequest struct {
 }
 
 type HeartbeatResponse struct {
-	ServerTime            string `json:"serverTime"`
-	CollectionIntervalSec int    `json:"collectionIntervalSec"`
-	HeartbeatIntervalSec  int    `json:"heartbeatIntervalSec"`
-	ServerName            string `json:"serverName"`
+	ServerTime            string         `json:"serverTime"`
+	CollectionIntervalSec int            `json:"collectionIntervalSec"`
+	HeartbeatIntervalSec  int            `json:"heartbeatIntervalSec"`
+	ServerName            string         `json:"serverName"`
+	Commands              []AgentCommand `json:"commands,omitempty"`
+}
+
+// AgentCommand merkezden gelen, kısıtlı türde ve açıkça yetkilendirilmiş komut.
+type AgentCommand struct {
+	ID      string            `json:"id"`
+	Type    string            `json:"type"`
+	Payload map[string]string `json:"payload"`
+}
+
+// CommandResultRequest komut sonucunu bildirir.
+type CommandResultRequest struct {
+	OK      bool   `json:"ok"`
+	Message string `json:"message,omitempty"`
+}
+
+// ServiceReport hizmet listesi raporu.
+type ServiceReport struct {
+	Services []ServiceItem `json:"services"`
+}
+
+// ServiceItem ServiceReportDto ile aynı alanlar.
+type ServiceItem struct {
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName,omitempty"`
+	State       string `json:"state"`
+	StartupType string `json:"startupType,omitempty"`
+	IsEnabled   *bool  `json:"isEnabled,omitempty"`
+}
+
+type ServiceReportResponse struct {
+	Accepted int `json:"accepted"`
 }
 
 // Metrik yapıları (MetricSampleDto ile aynı alanlar).
@@ -212,6 +244,20 @@ func (c *Client) Heartbeat(ctx context.Context, req HeartbeatRequest) (*Heartbea
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// ReportServices imzalı hizmet listesi gönderir.
+func (c *Client) ReportServices(ctx context.Context, report ServiceReport) (*ServiceReportResponse, error) {
+	var resp ServiceReportResponse
+	if err := c.do(ctx, "/agents/services", report, &resp, true); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// ReportCommandResult komut sonucunu bildirir.
+func (c *Client) ReportCommandResult(ctx context.Context, commandID string, result CommandResultRequest) error {
+	return c.do(ctx, "/agents/commands/"+commandID+"/result", result, nil, true)
 }
 
 // SendMetrics imzalı metrik yığını gönderir.

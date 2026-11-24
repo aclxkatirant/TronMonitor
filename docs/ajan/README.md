@@ -65,10 +65,12 @@ Yapılandırma dosyası ajanın gizli anahtarını içerir ve 0600 izinle yazıl
 - **Metrikler**: varsayılan olarak her 15 saniyede bir CPU, bellek, disk hacimleri (kapasite ve G/Ç hızı), ağ arayüzleri (alınan/gönderilen bayt/sn, bağlantı durumu) ve Linux'ta yük ortalaması toplanır.
 - **Kesinti dayanıklılığı**: merkez ulaşılamazsa örnekler bellekte tamponlanır (en fazla 240 örnek, yaklaşık 1 saat); bağlantı dönünce toplu gönderilir. Yeniden denemeler 5 saniyeden 5 dakikaya kadar üstel geri çekilmeyle yapılır.
 - Merkez, 90 saniye boyunca heartbeat almadığı sunucuyu **çevrimdışı** olarak işaretler ve bağlantı geçmişine kaydeder.
+- **Hizmetler**: başlangıçtan 5 saniye sonra ve ardından her 60 saniyede bir Windows hizmetleri (SCM) veya systemd birimleri (`systemctl list-units` / `list-unit-files`) ad, görünen ad, durum ve başlangıç türüyle raporlanır.
+- **Komutlar**: heartbeat yanıtında gelen `service.start`, `service.stop`, `service.restart` komutları (yalnızca bu üçü) en fazla 2 dakika içinde uygulanır; sonuç merkeze bildirilir ve hizmet listesi hemen yeniden raporlanır. Hizmet adı yol ayırıcısı veya denetim karakteri içeriyorsa komut reddedilir; Linux'ta `systemctl <eylem> -- <ad>` biçiminde, kabuk kullanılmadan çalıştırılır.
 
 ## Yetkiler
 
-- Kayıt ve metrik toplama yönetici yetkisi gerektirmez.
+- Kayıt ve metrik toplama yönetici yetkisi gerektirmez. Hizmet listesi okunabilir; hizmet başlatma/durdurma komutları Windows'ta yönetici (hizmet `LocalSystem` ile çalıştığından karşılanır), Linux'ta root yetkisi gerektirir.
 - Hizmet kurulumu Windows'ta yönetici, Linux'ta root yetkisi gerektirir.
 - Windows'ta hizmet varsayılan olarak `LocalSystem` hesabıyla kurulur. Daha kısıtlı bir hesap (`--service-user`) kullanılacaksa bu hesaba yapılandırma ve günlük dizininde okuma/yazma izni verilmeli ve "Performance Monitor Users" grubuna eklenmelidir; bu senaryo henüz doğrulanmamıştır.
 - Linux'ta systemd birimi `ProtectSystem=strict`, `NoNewPrivileges` ve yalnızca `/etc/tronmonitor` ile `/var/log/tronmonitor` yazma izniyle çalışır.
@@ -77,8 +79,8 @@ Yapılandırma dosyası ajanın gizli anahtarını içerir ve 0600 izinle yazıl
 
 ```bash
 cd agent
-./build.sh 0.1.0        # Linux/macOS
-.\build.ps1 -Version 0.1.0   # Windows
+./build.sh 0.2.0        # Linux/macOS
+.\build.ps1 -Version 0.2.0   # Windows
 ```
 
 Çıktılar `agent/dist/` altına yazılır; `CGO_ENABLED=0` ile statik derlenir.

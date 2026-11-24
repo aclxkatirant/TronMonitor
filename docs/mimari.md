@@ -99,7 +99,10 @@ Ajanlar yalnızca dışa doğru HTTPS bağlantısı kurar; izlenen sunucularda e
 - **Çevrimdışı tespiti**: BullMQ `maintenance` kuyruğundaki `agent-status-sweep` işi 30 saniyede bir çalışır; 90 saniye heartbeat almayan sunucular `OFFLINE`, ajanları `DISCONNECTED` olarak işaretlenir ve `DISCONNECTED` olayı yazılır.
 - **İptal**: kimlik bilgisi `REVOKED` yapıldığında ajan `AGENT_CREDENTIAL_REVOKED` alır ve veri göndermeyi durdurur.
 
-Terminal erişimi bu telemetri kanalından ayrı tutulacaktır (Phase 6).
+- **Hizmet raporu** (`/agents/services`, 60 sn): ajan tüm hizmetleri (`name`, `displayName`, `state`, `startupType`, `isEnabled`) gönderir; `MonitoredService` kayıtları yükseltilir, durum değişiklikleri `ServiceStateEvent` olarak yazılır, listede olmayan hizmetler `UNKNOWN` olur. İzlenen (`isMonitored`) bir hizmet `RUNNING` dışına çıkınca `SERVICE_FAILURE` olayı açılır, geri dönünce otomatik kapanır. Hizmet adı yalnızca yol ayırıcıları ve denetim karakterlerini reddeder (Windows adları boşluk içerebilir); ad hiçbir zaman kabuğa verilmez.
+- **Komutlar**: `POST /servers/:id/services/:serviceId/control` (`services.control` izni) `AgentCommand` kaydı oluşturur (`service.start|stop|restart`, 10 dakika geçerli, aynı hizmet için bekleyen komut varsa `COMMAND_ALREADY_PENDING`). Bekleyen komutlar bir sonraki heartbeat yanıtında `commands` alanıyla ajana gider (`SENT`); ajan yalnızca beyaz listedeki komutları çalıştırır, sonucu `POST /agents/commands/:id/result` ile bildirir (`SUCCEEDED`/`FAILED`) ve ardından hizmet listesini yeniden raporlar. Süresi dolan komutlar `EXPIRED` olur. Her istek ve sonuç işlem kaydına yazılır.
+
+Terminal erişimi bu telemetri kanalından ayrı tutulacaktır.
 
 ## Sunucu yönetimi ve gerçek zamanlı kanal
 
@@ -107,4 +110,11 @@ Terminal erişimi bu telemetri kanalından ayrı tutulacaktır (Phase 6).
 - `PATCH /servers/:id` ad, açıklama, grup ve etiketleri; `PATCH /servers/:id/agent` toplama aralığını; `POST /servers/:id/agent/revoke` kimlik bilgisini iptal eder (ajan `REVOKED`, sunucu `OFFLINE`). `DELETE /servers/:id` sunucuyu tüm metrik ve olay geçmişiyle siler.
 - Grup ve etiket adları veritabanı yerel ayarından bağımsız olarak Türkçe kurallarıyla (`toLocaleLowerCase('tr-TR')`) benzersizlik denetiminden geçer.
 - `GET /agent-downloads/:file` yalnızca bilinen dosya adlarını (4 ikili, `SHA256SUMS`, 4 betik) sunar; ikili dosyalar özet dosyasında kayıtlı değilse sunulmaz. Dizinler `AGENT_RELEASES_DIR` ve `AGENT_SCRIPTS_DIR` ile değiştirilebilir.
-- WebSocket ağ geçidi `/api/v1/ws` yolunda çalışır; bağlantı oturum çerezi ve `Origin` başlığıyla doğrulanır, `dashboard.read` izni gerekir ve kanal tek yönlüdür (sunucudan istemciye). Olaylar: `server.registered`, `server.updated`, `server.status`, `server.deleted`, `server.metrics`, `agent.revoked`. Arayüz olay geldiğinde ilgili sorguları geçersiz kılar; bağlantı yoksa 20 saniyelik yoklama sürer.
+- WebSocket ağ geçidi `/api/v1/ws` yolunda çalışır; bağlantı oturum çerezi ve `Origin` başlığıyla doğrulanır, `dashboard.read` izni gerekir ve kanal tek yönlüdür (sunucudan istemciye). Olaylar: `server.registered`, `server.updated`, `server.status`, `server.deleted`, `server.metrics`, `agent.revoked`, `incident.*`, `check.status`, `services.updated`. Arayüz olay geldiğinde ilgili sorguları geçersiz kılar; bağlantı yoksa 20 saniyelik yoklama sürer.
+
+## API belirteçleri ve işlem kayıtları
+
+- `POST /api-tokens` `tmk_` önekli 32 baytlık rastgele bir belirteç üretir; yalnızca SHA-256 karması ve ilk 12 karakteri saklanır, düz metin yalnızca yanıtla bir kez döner. Kapsamlar oluşturan kullanıcının etkin izinlerinin alt kümesi olmak zorundadır (`API_TOKEN_SCOPE_EXCEEDS`), isteğe bağlı bitiş tarihi verilir.
+- `SessionAuthGuard` `Authorization: Bearer tmk_...` başlığını tanır; etkin izinler = sahibinin güncel izinleri ∩ belirteç kapsamı. Sahip devre dışıysa, belirteç iptal edilmiş veya süresi dolmuşsa istek reddedilir. Bearer isteklerinde CSRF başlığı aranmaz (çerez kullanılmaz). `lastUsedAt` en fazla dakikada bir güncellenir.
+- `GET /api-tokens` kullanıcının kendi belirteçlerini, `?all=true` ile ve `apitokens.manage_all` izniyle tüm belirteçleri listeler; `DELETE /api-tokens/:id` iptal eder (yalnızca sahip veya `apitokens.manage_all`).
+- `GET /audit-logs` (`audit.read`) işlem kayıtlarını arama, eylem, kullanıcı, kaynak türü, sonuç ve tarih aralığı filtreleriyle sayfalı döndürür; `GET /audit-logs/meta` filtre seçeneklerini verir. Kayıtlar için güncelleme/silme uç noktası yoktur.

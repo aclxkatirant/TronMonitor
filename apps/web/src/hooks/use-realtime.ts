@@ -91,6 +91,9 @@ export function useRealtime(enabled = true): { connected: boolean } {
         case 'incident.updated':
           await Promise.all([queryClient.invalidateQueries({ queryKey: ['incidents'] }), queryClient.invalidateQueries({ queryKey: ['dashboard'] }), queryClient.invalidateQueries({ queryKey: ['checks'] })]);
           break;
+        case 'services.updated':
+          await queryClient.invalidateQueries({ queryKey: ['services'] });
+          break;
         case 'check.status':
           await Promise.all([queryClient.invalidateQueries({ queryKey: ['checks'] }), queryClient.invalidateQueries({ queryKey: ['dashboard'] })]);
           break;

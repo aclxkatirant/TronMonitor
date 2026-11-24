@@ -11,7 +11,7 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - Kimlik doğrulama: ilk kurulumda süper yönetici oluşturma, e-posta/parola ile giriş, güvenli oturum çerezleri, parola değiştirme, etkin oturumları görüntüleme ve sonlandırma
 - Rol tabanlı yetkilendirme: Süper Yönetici, Yönetici, Operatör, İzleyici rolleri; ayrıntılı izin kataloğu; kullanıcı bazında ek izin atama
 - Kullanıcı yönetimi: kullanıcı listeleme, arama, filtreleme, oluşturma, düzenleme, devre dışı bırakma, parola sıfırlama
-- İşlem kayıtları (altyapı): giriş, çıkış, kayıt, parola ve kullanıcı değişiklikleri veritabanına kaydedilir
+- İşlem kayıtları: giriş, çıkış, kayıt, parola, kullanıcı, sunucu, kontrol, olay, bildirim, hizmet ve belirteç işlemleri değiştirilemez biçimde kaydedilir; **İşlem Kayıtları** sayfasında arama, eylem/sonuç/kaynak filtreleri, sayfalama ve ayrıntı görünümü
 - Güvenlik temelleri: scrypt parola karması, HMAC ile karmalanmış oturum belirteçleri, CSRF koruması, giriş hız sınırı, Helmet başlıkları, sıkı girdi doğrulama
 - Web arayüzü: koyu temalı, Türkçe, duyarlı pano kabuğu; giriş, kurulum, genel bakış, hesap ayarları ve kullanıcı yönetimi sayfaları
 - İzleme ajanı (Go): Windows ve Linux için yerel ikili dosyalar; kayıt belirteciyle kayıt, HMAC imzalı ve yeniden oynatmaya karşı korumalı iletişim, heartbeat, CPU/bellek/disk/ağ metrikleri, kesintide tamponlama, Windows hizmeti ve systemd entegrasyonu
@@ -26,8 +26,10 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - Erişilebilirlik kontrolleri: HTTP, HTTPS, TCP ve ICMP (ping) kontrolleri; yeniden deneme, hata/toparlanma eşikleri, SSL sertifika bitiş takibi; yanıt süresi ve erişilebilirlik grafikleri; 24 saat / 7 gün / 30 gün erişilebilirlik yüzdeleri; süre tabanlı güvenilir zamanlayıcı
 - Olay yönetimi: ajan kopması, kontrol kesintisi, kaynak eşiği aşımı ve SSL bitişi için otomatik olay açma ve çözme; üstlenme, not ekleme, elle çözme; zaman çizelgesi ve bildirim geçmişi
 - Bildirimler: Discord webhook, Telegram bot ve SMTP e-posta kanalları; olay türüne göre seçim, test gönderimi, şifreli ve maskelenmiş yapılandırma, kuyruklu ve yeniden denemeli teslim
+- Hizmet izleme ve yönetimi: ajan Windows hizmetlerini ve systemd birimlerini her 60 saniyede raporlar; hizmet listesi (arama, durum ve izleme filtreleri), izlemeye alınan hizmet durduğunda kritik olay açılır ve toparlanınca kapanır; yetkili kullanıcılar başlat/durdur/yeniden başlat komutu gönderir, komut heartbeat ile ajana iletilir, sonucu komut geçmişinde ve işlem kayıtlarında görünür
+- API belirteçleri: `tmk_` önekli kişisel belirteçler, kapsam (izin) seçimi, geçerlilik süresi, yalnızca oluşturulurken gösterilir ve karması saklanır; `Authorization: Bearer` ile REST API erişimi; iptal; yöneticiler tüm kullanıcıların belirteçlerini görebilir
 
-Hizmet izleme, web terminali, işlem kayıtları ekranı ve API belirteçleri **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
+Web terminali **henüz uygulanmamıştır**; arayüzde bu modül "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
 
 ## Desteklenecek işletim sistemleri
 

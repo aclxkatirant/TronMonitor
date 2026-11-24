@@ -10,7 +10,8 @@ export type RealtimeEventType =
   | 'agent.revoked'
   | 'incident.created'
   | 'incident.updated'
-  | 'check.status';
+  | 'check.status'
+  | 'services.updated';
 
 export interface RealtimeEvent {
   type: RealtimeEventType;

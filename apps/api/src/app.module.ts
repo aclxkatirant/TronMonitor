@@ -23,6 +23,8 @@ import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { UptimeModule } from './uptime/uptime.module';
+import { ServicesModule } from './services/services.module';
+import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { HealthController } from './health/health.controller';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
 
@@ -49,6 +51,7 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
     AuditModule,
     PermissionsModule,
     EncryptionModule,
+    ApiTokensModule,
     AuthModule,
     UsersModule,
     QueueModule,
@@ -56,6 +59,7 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
     RealtimeModule,
     NotificationsModule,
     IncidentsModule,
+    ServicesModule,
     RegistrationModule,
     AgentsModule,
     ServersModule,

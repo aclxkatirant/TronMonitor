@@ -44,6 +44,7 @@ model User {
   resolvedIncidents     Incident[]        @relation("IncidentResolvedBy")
   incidentEvents        IncidentEvent[]
   createdChecks         MonitoringCheck[]
+  agentCommands         AgentCommand[]
 
   @@index([role])
 }
@@ -234,6 +235,36 @@ model Agent {
   server      Server                 @relation(fields: [serverId], references: [id], onDelete: Cascade)
   credentials AgentCredential[]
   events      AgentConnectionEvent[]
+  commands    AgentCommand[]
+}
+
+enum CommandStatus {
+  PENDING
+  SENT
+  SUCCEEDED
+  FAILED
+  EXPIRED
+}
+
+/// Ajana heartbeat yanıtıyla iletilen, kısıtlı ve açıkça yetkilendirilmiş komutlar (ör. hizmet yeniden başlatma).
+model AgentCommand {
+  id            String        @id @default(uuid())
+  agentId       String
+  type          String
+  payload       Json
+  status        CommandStatus @default(PENDING)
+  requestedById String?
+  result        String?
+  createdAt     DateTime      @default(now())
+  sentAt        DateTime?
+  completedAt   DateTime?
+  expiresAt     DateTime
+
+  agent       Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  requestedBy User? @relation(fields: [requestedById], references: [id], onDelete: SetNull)
+
+  @@index([agentId, status])
+  @@index([createdAt(sort: Desc)])
 }
 
 enum CredentialStatus {

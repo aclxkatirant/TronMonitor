@@ -222,7 +222,7 @@ export interface DashboardSummary {
 }
 
 export interface RealtimeEvent {
-  type: 'hello' | 'server.registered' | 'server.updated' | 'server.status' | 'server.deleted' | 'server.metrics' | 'agent.revoked' | 'incident.created' | 'incident.updated' | 'check.status';
+  type: 'hello' | 'server.registered' | 'server.updated' | 'server.status' | 'server.deleted' | 'server.metrics' | 'agent.revoked' | 'incident.created' | 'incident.updated' | 'check.status' | 'services.updated';
   payload: Record<string, unknown>;
   at: string;
 }
@@ -351,4 +351,80 @@ export interface CheckResultItem {
 export interface CheckHistory {
   range: { from: string; to: string; bucketSeconds: number };
   points: { t: string; avgMs: number | null; maxMs: number | null; availability: number | null; samples: number }[];
+}
+
+// ---------------------------------------------------------------------------
+// Hizmetler, komutlar, işlem kayıtları, API belirteçleri
+// ---------------------------------------------------------------------------
+
+export type ServiceState = 'RUNNING' | 'STOPPED' | 'STARTING' | 'STOPPING' | 'FAILED' | 'UNKNOWN';
+export type CommandStatus = 'PENDING' | 'SENT' | 'SUCCEEDED' | 'FAILED' | 'EXPIRED';
+export const COMMAND_STATUS_LABELS: Record<CommandStatus, string> = { PENDING: 'Bekliyor', SENT: 'Ajana iletildi', SUCCEEDED: 'Başarılı', FAILED: 'Başarısız', EXPIRED: 'Zaman aşımı' };
+
+export interface MonitoredServiceItem {
+  id: string;
+  serverId: string;
+  name: string;
+  displayName: string | null;
+  state: ServiceState;
+  stateLabel: string;
+  startupType: string | null;
+  isEnabled: boolean | null;
+  isMonitored: boolean;
+  lastStateChangeAt: string | null;
+  lastSeenAt: string | null;
+  server?: { id: string; name: string; status: ServerStatus };
+}
+
+export interface ServiceListResponse extends Paginated<MonitoredServiceItem> {
+  summary: Partial<Record<ServiceState, number>>;
+}
+
+export interface AgentCommandItem {
+  id: string;
+  type: string;
+  payload: Record<string, string>;
+  status: CommandStatus;
+  result: string | null;
+  createdAt: string;
+  sentAt: string | null;
+  completedAt: string | null;
+  expiresAt: string;
+  requestedBy: string | null;
+  server: { id: string; name: string };
+}
+
+export type AuditResult = 'SUCCESS' | 'FAILURE' | 'DENIED';
+
+export interface AuditLogItem {
+  id: string;
+  action: string;
+  actorLabel: string;
+  user: { id: string; fullName: string; email: string } | null;
+  resourceType: string | null;
+  resourceId: string | null;
+  ipAddress: string | null;
+  result: AuditResult;
+  resultLabel: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+export interface AuditMeta {
+  actions: string[];
+  resourceTypes: string[];
+  results: { value: AuditResult; label: string }[];
+}
+
+export interface ApiTokenItem {
+  id: string;
+  name: string;
+  tokenPrefix: string;
+  scopes: string[];
+  expiresAt: string | null;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
+  owner?: { id: string; fullName: string; email: string };
 }

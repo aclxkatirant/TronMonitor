@@ -16,6 +16,7 @@ import { RegistrationTokensService } from '../registration/registration-tokens.s
 import { RealtimeService } from '../realtime/realtime.service';
 import { MetricsService } from '../metrics/metrics.service';
 import { IncidentsService } from '../incidents/incidents.service';
+import { ServicesService } from '../services/services.service';
 import { IncidentSeverity, IncidentType } from '../generated/prisma/client';
 import type { AuthenticatedAgent } from './agent-auth.guard';
 import type { HeartbeatDto, HostInfoDto, MetricsBatchDto, RegisterAgentDto } from './dto/agent.dto';
@@ -41,6 +42,7 @@ export interface HeartbeatResult {
   collectionIntervalSec: number;
   heartbeatIntervalSec: number;
   serverName: string;
+  commands: { id: string; type: string; payload: Record<string, string> }[];
 }
 
 interface ServerHostFields {
@@ -83,6 +85,7 @@ export class AgentsService {
     private readonly realtime: RealtimeService,
     private readonly metrics: MetricsService,
     private readonly incidents: IncidentsService,
+    private readonly services: ServicesService,
   ) {}
 
   /**
@@ -237,6 +240,7 @@ export class AgentsService {
       collectionIntervalSec: current.collectionIntervalSec,
       heartbeatIntervalSec: HEARTBEAT_INTERVAL_SECONDS,
       serverName: current.server.name,
+      commands: await this.services.takePendingCommands(agent.agentId),
     };
   }
 
