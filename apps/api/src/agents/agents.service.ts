@@ -15,6 +15,8 @@ import { generateToken } from '../common/crypto';
 import { RegistrationTokensService } from '../registration/registration-tokens.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { MetricsService } from '../metrics/metrics.service';
+import { IncidentsService } from '../incidents/incidents.service';
+import { IncidentSeverity, IncidentType } from '../generated/prisma/client';
 import type { AuthenticatedAgent } from './agent-auth.guard';
 import type { HeartbeatDto, HostInfoDto, MetricsBatchDto, RegisterAgentDto } from './dto/agent.dto';
 import { randomBytes } from 'node:crypto';
@@ -80,6 +82,7 @@ export class AgentsService {
     private readonly registrationTokens: RegistrationTokensService,
     private readonly realtime: RealtimeService,
     private readonly metrics: MetricsService,
+    private readonly incidents: IncidentsService,
   ) {}
 
   /**
@@ -226,6 +229,7 @@ export class AgentsService {
 
     if (reconnecting || current.server.status === ServerStatus.OFFLINE || current.server.status === ServerStatus.PENDING) {
       this.realtime.emit('server.status', { serverId: current.serverId, status: ServerStatus.ONLINE, agentStatus: AgentStatus.CONNECTED });
+      await this.incidents.resolveAuto(IncidentType.AGENT_DISCONNECTED, { serverId: current.serverId }, 'Ajan yeniden bağlandı', { serverName: current.server.name });
     }
 
     return {
@@ -320,14 +324,33 @@ export class AgentsService {
     if (!server || (server.status !== ServerStatus.ONLINE && server.status !== ServerStatus.DEGRADED)) return;
     const evaluation = await this.metrics.evaluateThresholds(serverId);
     const next = evaluation.degraded ? ServerStatus.DEGRADED : ServerStatus.ONLINE;
-    if (next === server.status) return;
-    await this.prisma.server.update({ where: { id: serverId }, data: { status: next } });
-    if (next === ServerStatus.DEGRADED) {
-      this.logger.warn(`Sunucu sorunlu: ${server.name} (${evaluation.reasons.join(', ')})`);
-    } else {
-      this.logger.log(`Sunucu normale döndü: ${server.name}`);
+    const context = { serverName: server.name };
+    if (next !== server.status) {
+      await this.prisma.server.update({ where: { id: serverId }, data: { status: next } });
+      if (next === ServerStatus.DEGRADED) {
+        this.logger.warn(`Sunucu sorunlu: ${server.name} (${evaluation.reasons.join(', ')})`);
+      } else {
+        this.logger.log(`Sunucu normale döndü: ${server.name}`);
+      }
+      this.realtime.emit('server.status', { serverId, status: next, reasons: evaluation.reasons });
     }
-    this.realtime.emit('server.status', { serverId, status: next, reasons: evaluation.reasons });
+    // Kaynak olayları: her eşik türü için ayrı olay; aşım sürdükçe tek olay kalır, bitince çözülür.
+    const t = evaluation.thresholds;
+    if (evaluation.cpu) {
+      await this.incidents.open({ type: IncidentType.HIGH_CPU, severity: IncidentSeverity.WARNING, title: `Yüksek CPU kullanımı: ${server.name}`, description: `CPU kullanımı ${t.consecutiveSamples} ardışık örnekte %${t.cpuPercent} eşiğini aştı.`, serverId, context });
+    } else {
+      await this.incidents.resolveAuto(IncidentType.HIGH_CPU, { serverId }, 'CPU kullanımı eşiğin altına indi', context);
+    }
+    if (evaluation.memory) {
+      await this.incidents.open({ type: IncidentType.HIGH_MEMORY, severity: IncidentSeverity.WARNING, title: `Yüksek bellek kullanımı: ${server.name}`, description: `Bellek kullanımı ${t.consecutiveSamples} ardışık örnekte %${t.memoryPercent} eşiğini aştı.`, serverId, context });
+    } else {
+      await this.incidents.resolveAuto(IncidentType.HIGH_MEMORY, { serverId }, 'Bellek kullanımı eşiğin altına indi', context);
+    }
+    if (evaluation.disks.length > 0) {
+      await this.incidents.open({ type: IncidentType.LOW_DISK, severity: IncidentSeverity.WARNING, title: `Düşük disk alanı: ${server.name}`, description: `Şu hacimler %${t.diskPercent} doluluk eşiğini aştı: ${evaluation.disks.join(', ')}`, serverId, context });
+    } else {
+      await this.incidents.resolveAuto(IncidentType.LOW_DISK, { serverId }, 'Disk doluluğu eşiğin altına indi', context);
+    }
   }
 
   /**
@@ -364,6 +387,14 @@ export class AgentsService {
       ]);
       this.logger.warn(`Sunucu çevrimdışı: ${server.name}`);
       this.realtime.emit('server.status', { serverId: server.id, status: ServerStatus.OFFLINE, agentStatus: AgentStatus.DISCONNECTED });
+      await this.incidents.open({
+        type: IncidentType.AGENT_DISCONNECTED,
+        severity: IncidentSeverity.CRITICAL,
+        title: `Sunucu çevrimdışı: ${server.name}`,
+        description: `Ajan ${OFFLINE_THRESHOLD_SECONDS} saniyedir heartbeat göndermiyor. Son heartbeat: ${server.lastHeartbeatAt?.toISOString() ?? 'hiç'}.`,
+        serverId: server.id,
+        context: { serverName: server.name },
+      });
     }
     return stale.length;
   }

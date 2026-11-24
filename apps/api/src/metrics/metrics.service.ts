@@ -18,6 +18,15 @@ const RANGE_MS: Record<string, number> = {
 
 export type MetricSource = 'raw' | 'minute5' | 'hour1' | 'day1';
 
+export interface ThresholdEvaluation {
+  degraded: boolean;
+  reasons: string[];
+  cpu: boolean;
+  memory: boolean;
+  disks: string[];
+  thresholds: { cpuPercent: number; memoryPercent: number; diskPercent: number; consecutiveSamples: number };
+}
+
 export interface ResolvedRange {
   from: Date;
   to: Date;
@@ -368,8 +377,8 @@ export class MetricsService {
     return { byCpu, byMemory, sampled: rows.length };
   }
 
-  /** Ardışık örneklere göre eşik aşımı var mı? Sunucu durumu için kullanılır. */
-  async evaluateThresholds(serverId: string): Promise<{ degraded: boolean; reasons: string[] }> {
+  /** Ardışık örneklere göre eşik aşımı var mı? Sunucu durumu ve olaylar için kullanılır. */
+  async evaluateThresholds(serverId: string): Promise<ThresholdEvaluation> {
     const { thresholds } = await this.settings.getMonitoring();
     const samples = await this.prisma.metricSample.findMany({
       where: { serverId },
@@ -377,10 +386,13 @@ export class MetricsService {
       take: thresholds.consecutiveSamples,
       select: { timestamp: true, cpuPercent: true, memoryPercent: true },
     });
-    if (samples.length < thresholds.consecutiveSamples) return { degraded: false, reasons: [] };
+    const empty: ThresholdEvaluation = { degraded: false, reasons: [], cpu: false, memory: false, disks: [], thresholds };
+    if (samples.length < thresholds.consecutiveSamples) return empty;
     const reasons: string[] = [];
-    if (samples.every((s) => s.cpuPercent >= thresholds.cpuPercent)) reasons.push(`CPU ≥ %${thresholds.cpuPercent}`);
-    if (samples.every((s) => s.memoryPercent >= thresholds.memoryPercent)) reasons.push(`Bellek ≥ %${thresholds.memoryPercent}`);
+    const cpu = samples.every((s) => s.cpuPercent >= thresholds.cpuPercent);
+    const memory = samples.every((s) => s.memoryPercent >= thresholds.memoryPercent);
+    if (cpu) reasons.push(`CPU ≥ %${thresholds.cpuPercent}`);
+    if (memory) reasons.push(`Bellek ≥ %${thresholds.memoryPercent}`);
 
     const timestamps = samples.map((s) => s.timestamp);
     const diskRows = await this.prisma.$queryRaw<{ volume: string; hits: bigint }[]>`
@@ -388,9 +400,13 @@ export class MetricsService {
       WHERE "serverId" = ${serverId} AND "timestamp" IN (${Prisma.join(timestamps)})
         AND "totalBytes" > 0 AND "usedBytes"::float8 * 100 / "totalBytes"::float8 >= ${thresholds.diskPercent}
       GROUP BY "volume"`;
+    const disks: string[] = [];
     for (const row of diskRows) {
-      if (Number(row.hits) >= thresholds.consecutiveSamples) reasons.push(`Disk ${row.volume} ≥ %${thresholds.diskPercent}`);
+      if (Number(row.hits) >= thresholds.consecutiveSamples) {
+        disks.push(row.volume);
+        reasons.push(`Disk ${row.volume} ≥ %${thresholds.diskPercent}`);
+      }
     }
-    return { degraded: reasons.length > 0, reasons };
+    return { degraded: reasons.length > 0, reasons, cpu, memory, disks, thresholds };
   }
 }

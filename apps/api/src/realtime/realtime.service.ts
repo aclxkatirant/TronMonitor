@@ -7,7 +7,10 @@ export type RealtimeEventType =
   | 'server.status'
   | 'server.deleted'
   | 'server.metrics'
-  | 'agent.revoked';
+  | 'agent.revoked'
+  | 'incident.created'
+  | 'incident.updated'
+  | 'check.status';
 
 export interface RealtimeEvent {
   type: RealtimeEventType;

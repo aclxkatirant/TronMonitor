@@ -53,6 +53,10 @@ export async function createTestApp(): Promise<TestContext> {
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   // Kalıcı katalog tabloları (Permission, RolePermission) korunur.
   await prisma.auditLog.deleteMany();
+  await prisma.notification.deleteMany();
+  await prisma.notificationChannel.deleteMany();
+  await prisma.monitoringCheck.deleteMany();
+  await prisma.incident.deleteMany();
   await prisma.metricAggregate.deleteMany();
   await prisma.server.deleteMany();
   await prisma.registrationToken.deleteMany();

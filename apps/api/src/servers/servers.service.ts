@@ -17,6 +17,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { AppError } from '../common/app-error';
 import { RealtimeService } from '../realtime/realtime.service';
+import { IncidentsService } from '../incidents/incidents.service';
+import { IncidentType } from '../generated/prisma/client';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import type { ListEventsQueryDto, ListServersQueryDto, UpdateAgentSettingsDto, UpdateServerDto } from './dto/servers.dto';
 
@@ -102,6 +104,7 @@ export class ServersService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly realtime: RealtimeService,
+    private readonly incidents: IncidentsService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -348,6 +351,8 @@ export class ServersService {
     });
     this.realtime.emit('agent.revoked', { serverId });
     this.realtime.emit('server.status', { serverId, status: ServerStatus.OFFLINE });
+    // Bilinçli bir iptal; açık bağlantı olayı varsa kapatılır ve yeni olay üretilmez (ajan artık CONNECTED değil).
+    await this.incidents.resolveAuto(IncidentType.AGENT_DISCONNECTED, { serverId }, `Ajan erişimi ${actor.email} tarafından iptal edildi`, { serverName: server.name });
     return this.getById(serverId);
   }
 

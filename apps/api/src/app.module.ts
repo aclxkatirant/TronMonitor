@@ -20,6 +20,9 @@ import { AgentDownloadsModule } from './agent-downloads/agent-downloads.module';
 import { QueueModule } from './queue/queue.module';
 import { SettingsModule } from './settings/settings.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { IncidentsModule } from './incidents/incidents.module';
+import { UptimeModule } from './uptime/uptime.module';
 import { HealthController } from './health/health.controller';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
 
@@ -51,10 +54,13 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
     QueueModule,
     SettingsModule,
     RealtimeModule,
+    NotificationsModule,
+    IncidentsModule,
     RegistrationModule,
     AgentsModule,
     ServersModule,
     MetricsModule,
+    UptimeModule,
     DashboardModule,
     AgentDownloadsModule,
   ],

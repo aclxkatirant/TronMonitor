@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { IncidentStatus, OsFamily, ServerStatus } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServersService } from '../servers/servers.service';
+import { UptimeService } from '../uptime/uptime.service';
 
 export interface DashboardSummary {
   servers: {
@@ -14,6 +15,7 @@ export interface DashboardSummary {
     linux: number;
   };
   availabilityPercent: number | null;
+  uptime: { percent: number | null; checks: number; down: number };
   activeIncidents: number;
   usage: {
     avgCpuPercent: number | null;
@@ -40,10 +42,11 @@ export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly servers: ServersService,
+    private readonly uptime: UptimeService,
   ) {}
 
   async summary(): Promise<DashboardSummary> {
-    const [byStatus, byOs, activeIncidents, onlineServers, events] = await Promise.all([
+    const [byStatus, byOs, activeIncidents, onlineServers, events, uptime] = await Promise.all([
       this.prisma.server.groupBy({ by: ['status'], _count: { _all: true } }),
       this.prisma.server.groupBy({ by: ['osFamily'], _count: { _all: true } }),
       this.prisma.incident.count({ where: { status: { not: IncidentStatus.RESOLVED } } }),
@@ -53,6 +56,7 @@ export class DashboardService {
         take: 10,
         include: { agent: { select: { serverId: true, server: { select: { name: true } } } } },
       }),
+      this.uptime.overallUptime24h(),
     ]);
 
     const statusCount = (status: ServerStatus) => byStatus.find((row) => row.status === status)?._count._all ?? 0;
@@ -88,6 +92,7 @@ export class DashboardService {
         linux: osCount(OsFamily.LINUX),
       },
       availabilityPercent: registered > 0 ? Math.round(((online + degraded) / registered) * 1000) / 10 : null,
+      uptime,
       activeIncidents,
       usage: {
         avgCpuPercent: sampled > 0 ? Math.round((cpuSum / sampled) * 10) / 10 : null,
