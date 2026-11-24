@@ -1,0 +1,728 @@
+// TronMonitor veritabanı şeması (PostgreSQL + Prisma)
+// Tanımlayıcılar İngilizce tutulur; kullanıcıya görünen metinler uygulama katmanında Türkçeleştirilir.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Kimlik ve yetkilendirme
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  fullName     String
+  role         UserRole  @default(VIEWER)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions              UserSession[]
+  apiTokens             ApiToken[]
+  permissions           UserPermission[]
+  serverPermissions     ServerPermission[]
+  registrationTokens    RegistrationToken[]
+  terminalSessions      TerminalSession[]
+  auditLogs             AuditLog[]
+  acknowledgedIncidents Incident[]        @relation("IncidentAcknowledgedBy")
+  resolvedIncidents     Incident[]        @relation("IncidentResolvedBy")
+  incidentEvents        IncidentEvent[]
+  createdChecks         MonitoringCheck[]
+
+  @@index([role])
+}
+
+/// Sistemdeki ayrıntılı izin anahtarları (ör. "servers.read", "terminal.use").
+model Permission {
+  key         String @id
+  description String
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+}
+
+/// Bir role varsayılan olarak verilen izinler.
+model RolePermission {
+  role          UserRole
+  permissionKey String
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([role, permissionKey])
+}
+
+/// Belirli bir kullanıcıya açıkça atanan ek izinler (özellikle Operatör rolü için).
+model UserPermission {
+  userId        String
+  permissionKey String
+  grantedAt     DateTime   @default(now())
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionKey], references: [key], onDelete: Cascade)
+
+  @@id([userId, permissionKey])
+}
+
+/// Sunucu düzeyinde izinler (ör. yalnızca belirli sunucularda terminal kullanımı).
+model ServerPermission {
+  userId      String
+  serverId    String
+  permissions String[]
+  grantedAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  server      Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@id([userId, serverId])
+}
+
+/// Tarayıcı oturumları. Çereze yalnızca rastgele belirteç yazılır; burada karması saklanır.
+model UserSession {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  ipAddress  String?
+  userAgent  String?
+  expiresAt  DateTime
+  lastSeenAt DateTime  @default(now())
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Programatik erişim için API belirteçleri. Düz metin yalnızca oluşturulurken bir kez gösterilir.
+model ApiToken {
+  id          String    @id @default(uuid())
+  userId      String
+  name        String
+  tokenPrefix String
+  tokenHash   String    @unique
+  scopes      String[]
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Sunucular ve ajanlar
+// ---------------------------------------------------------------------------
+
+enum OsFamily {
+  WINDOWS
+  LINUX
+}
+
+enum ServerStatus {
+  PENDING
+  ONLINE
+  OFFLINE
+  DEGRADED
+}
+
+model ServerGroup {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  servers            Server[]
+  registrationTokens RegistrationToken[]
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String?
+  createdAt DateTime @default(now())
+
+  servers ServerTag[]
+}
+
+model ServerTag {
+  serverId String
+  tagId    String
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, tagId])
+}
+
+model Server {
+  id               String       @id @default(uuid())
+  name             String
+  description      String?
+  hostname         String?
+  osFamily         OsFamily
+  osName           String?
+  osVersion        String?
+  osEdition        String?
+  kernelVersion    String?
+  architecture     String?
+  cpuModel         String?
+  cpuCores         Int?
+  totalMemoryBytes BigInt?
+  status           ServerStatus @default(PENDING)
+  lastHeartbeatAt  DateTime?
+  bootTime         DateTime?
+  groupId          String?
+  registeredAt     DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  group             ServerGroup?             @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  tags              ServerTag[]
+  agent             Agent?
+  permissions       ServerPermission[]
+  metricSamples     MetricSample[]
+  diskSamples       DiskSample[]
+  networkSamples    NetworkInterfaceSample[]
+  metricAggregates  MetricAggregate[]
+  services          MonitoredService[]
+  checks            MonitoringCheck[]
+  incidents         Incident[]
+  terminalSessions  TerminalSession[]
+  credentials       ServerCredential[]
+  registrationToken RegistrationToken?
+
+  @@index([status])
+  @@index([osFamily])
+  @@index([groupId])
+  @@index([name])
+}
+
+enum AgentStatus {
+  NEVER_CONNECTED
+  CONNECTED
+  DISCONNECTED
+  REVOKED
+}
+
+model Agent {
+  id                    String      @id @default(uuid())
+  serverId              String      @unique
+  version               String?
+  status                AgentStatus @default(NEVER_CONNECTED)
+  lastConnectedAt       DateTime?
+  lastDisconnectedAt    DateTime?
+  lastIpAddress         String?
+  collectionIntervalSec Int         @default(15)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  server      Server                 @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  credentials AgentCredential[]
+  events      AgentConnectionEvent[]
+}
+
+enum CredentialStatus {
+  ACTIVE
+  ROTATED
+  REVOKED
+}
+
+/// Ajanın arka uca kimlik doğrulamak için kullandığı anahtar. Sır yalnızca karma olarak saklanır.
+model AgentCredential {
+  id         String           @id @default(uuid())
+  agentId    String
+  keyId      String           @unique
+  secretHash String
+  status     CredentialStatus @default(ACTIVE)
+  issuedAt   DateTime         @default(now())
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  agent      Agent            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, status])
+}
+
+enum AgentEventType {
+  CONNECTED
+  DISCONNECTED
+  REGISTERED
+  CREDENTIAL_ROTATED
+  CREDENTIAL_REVOKED
+  VERSION_CHANGED
+}
+
+model AgentConnectionEvent {
+  id           BigInt         @id @default(autoincrement())
+  agentId      String
+  type         AgentEventType
+  ipAddress    String?
+  agentVersion String?
+  detail       String?
+  createdAt    DateTime       @default(now())
+  agent        Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, createdAt(sort: Desc)])
+}
+
+/// Kısa ömürlü, tek kullanımlık sunucu kayıt belirteçleri.
+model RegistrationToken {
+  id             String    @id @default(uuid())
+  tokenPrefix    String
+  tokenHash      String    @unique
+  osFamily       OsFamily
+  osVersion      String?
+  architecture   String?
+  serverName     String?
+  groupId        String?
+  createdById    String
+  expiresAt      DateTime
+  usedAt         DateTime?
+  usedByServerId String?   @unique
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  group        ServerGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  usedByServer Server?      @relation(fields: [usedByServerId], references: [id], onDelete: SetNull)
+
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Metrikler
+// ---------------------------------------------------------------------------
+
+/// Ham sistem metrikleri. Saklama politikasıyla düzenli olarak budanır.
+model MetricSample {
+  serverId         String
+  timestamp        DateTime
+  cpuPercent       Float
+  memoryTotalBytes BigInt
+  memoryUsedBytes  BigInt
+  memoryPercent    Float
+  loadAvg1         Float?
+  loadAvg5         Float?
+  loadAvg15        Float?
+  diskReadBps      Float?
+  diskWriteBps     Float?
+  netRxBps         Float?
+  netTxBps         Float?
+  uptimeSeconds    BigInt?
+  server           Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, timestamp])
+  @@index([timestamp])
+}
+
+model DiskSample {
+  serverId   String
+  timestamp  DateTime
+  volume     String
+  totalBytes BigInt
+  usedBytes  BigInt
+  freeBytes  BigInt
+  readBps    Float?
+  writeBps   Float?
+  server     Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, timestamp, volume])
+  @@index([timestamp])
+}
+
+model NetworkInterfaceSample {
+  serverId      String
+  timestamp     DateTime
+  interfaceName String
+  rxBps         Float
+  txBps         Float
+  isUp          Boolean  @default(true)
+  server        Server   @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, timestamp, interfaceName])
+  @@index([timestamp])
+}
+
+enum AggregateResolution {
+  MINUTE_5
+  HOUR_1
+  DAY_1
+}
+
+/// Uzun dönem grafikler için özetlenmiş metrikler.
+model MetricAggregate {
+  serverId       String
+  bucketStart    DateTime
+  resolution     AggregateResolution
+  cpuAvg         Float
+  cpuMax         Float
+  memoryAvg      Float
+  memoryMax      Float
+  diskUsedPctAvg Float?
+  netRxBpsAvg    Float?
+  netTxBpsAvg    Float?
+  sampleCount    Int
+  server         Server              @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@id([serverId, resolution, bucketStart])
+  @@index([bucketStart])
+}
+
+// ---------------------------------------------------------------------------
+// Hizmet izleme
+// ---------------------------------------------------------------------------
+
+enum ServiceState {
+  RUNNING
+  STOPPED
+  STARTING
+  STOPPING
+  FAILED
+  UNKNOWN
+}
+
+model MonitoredService {
+  id                String       @id @default(uuid())
+  serverId          String
+  name              String
+  displayName       String?
+  state             ServiceState @default(UNKNOWN)
+  startupType       String?
+  isEnabled         Boolean?
+  isMonitored       Boolean      @default(false)
+  lastStateChangeAt DateTime?
+  lastSeenAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  server    Server              @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  events    ServiceStateEvent[]
+  incidents Incident[]
+
+  @@unique([serverId, name])
+  @@index([serverId, isMonitored])
+}
+
+model ServiceStateEvent {
+  id        BigInt           @id @default(autoincrement())
+  serviceId String
+  fromState ServiceState
+  toState   ServiceState
+  createdAt DateTime         @default(now())
+  service   MonitoredService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, createdAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// Erişilebilirlik (uptime) kontrolleri
+// ---------------------------------------------------------------------------
+
+enum CheckType {
+  HTTP
+  HTTPS
+  TCP
+  ICMP
+}
+
+enum CheckStatus {
+  PENDING
+  UP
+  DOWN
+}
+
+model MonitoringCheck {
+  id                 String      @id @default(uuid())
+  name               String
+  type               CheckType
+  target             String
+  port               Int?
+  method             String?
+  expectedStatusCode Int?
+  intervalSec        Int         @default(60)
+  timeoutSec         Int         @default(10)
+  retryCount         Int         @default(2)
+  failureThreshold   Int         @default(3)
+  recoveryThreshold  Int         @default(2)
+  sslExpiryWarnDays  Int?
+  notifyOnFailure    Boolean     @default(true)
+  isEnabled          Boolean     @default(true)
+  status             CheckStatus @default(PENDING)
+  consecutiveFails   Int         @default(0)
+  consecutiveOks     Int         @default(0)
+  lastCheckedAt      DateTime?
+  lastStatusChangeAt DateTime?
+  lastResponseMs     Int?
+  sslExpiresAt       DateTime?
+  serverId           String?
+  createdById        String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  server    Server?       @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  createdBy User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  results   CheckResult[]
+  incidents Incident[]
+
+  @@index([isEnabled])
+  @@index([serverId])
+}
+
+model CheckResult {
+  id             BigInt          @id @default(autoincrement())
+  checkId        String
+  checkedAt      DateTime        @default(now())
+  isUp           Boolean
+  responseTimeMs Int?
+  statusCode     Int?
+  errorMessage   String?
+  sslExpiresAt   DateTime?
+  check          MonitoringCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  @@index([checkId, checkedAt(sort: Desc)])
+  @@index([checkedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Olaylar (incident)
+// ---------------------------------------------------------------------------
+
+enum IncidentType {
+  SERVER_UNAVAILABLE
+  AGENT_DISCONNECTED
+  SERVICE_FAILURE
+  HIGH_CPU
+  HIGH_MEMORY
+  LOW_DISK
+  NETWORK_FAILURE
+  SSL_EXPIRING
+  CHECK_DOWN
+}
+
+enum IncidentSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+model Incident {
+  id               String           @id @default(uuid())
+  type             IncidentType
+  severity         IncidentSeverity
+  status           IncidentStatus   @default(OPEN)
+  title            String
+  description      String?
+  serverId         String?
+  checkId          String?
+  serviceId        String?
+  startedAt        DateTime         @default(now())
+  acknowledgedAt   DateTime?
+  acknowledgedById String?
+  resolvedAt       DateTime?
+  resolvedById     String?
+  resolutionNote   String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  server         Server?           @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  check          MonitoringCheck?  @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  service        MonitoredService? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  acknowledgedBy User?             @relation("IncidentAcknowledgedBy", fields: [acknowledgedById], references: [id], onDelete: SetNull)
+  resolvedBy     User?             @relation("IncidentResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  events         IncidentEvent[]
+  notifications  Notification[]
+
+  @@index([status, startedAt(sort: Desc)])
+  @@index([serverId, status])
+  @@index([type])
+}
+
+model IncidentEvent {
+  id         BigInt   @id @default(autoincrement())
+  incidentId String
+  kind       String
+  message    String
+  userId     String?
+  createdAt  DateTime @default(now())
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Bildirimler
+// ---------------------------------------------------------------------------
+
+enum NotificationChannelType {
+  DISCORD
+  TELEGRAM
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// Bildirim kanalı. Webhook adresi / bot belirteci gibi sırlar şifrelenmiş olarak saklanır.
+model NotificationChannel {
+  id              String                  @id @default(uuid())
+  name            String
+  type            NotificationChannelType
+  encryptedConfig String
+  enabledEvents   String[]
+  isEnabled       Boolean                 @default(true)
+  lastTestedAt    DateTime?
+  lastTestResult  String?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  notifications Notification[]
+}
+
+model Notification {
+  id         String             @id @default(uuid())
+  channelId  String
+  incidentId String?
+  eventType  String
+  payload    Json
+  status     NotificationStatus @default(PENDING)
+  attempts   Int                @default(0)
+  lastError  String?
+  sentAt     DateTime?
+  createdAt  DateTime           @default(now())
+
+  channel  NotificationChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  incident Incident?           @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([incidentId])
+}
+
+// ---------------------------------------------------------------------------
+// Terminal
+// ---------------------------------------------------------------------------
+
+enum TerminalProtocol {
+  SSH
+  WINRM
+}
+
+enum CredentialType {
+  SSH_KEY
+  SSH_PASSWORD
+  WINRM_PASSWORD
+}
+
+/// Terminal erişimi için sunucu kimlik bilgileri. Sır asla düz metin saklanmaz veya istemciye verilmez.
+model ServerCredential {
+  id              String         @id @default(uuid())
+  serverId        String
+  type            CredentialType
+  username        String
+  port            Int
+  encryptedSecret String
+  hostFingerprint String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  server          Server         @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@index([serverId])
+}
+
+enum TerminalSessionStatus {
+  CONNECTING
+  ACTIVE
+  CLOSED
+  FAILED
+  TIMED_OUT
+  TERMINATED
+}
+
+model TerminalSession {
+  id        String                @id @default(uuid())
+  serverId  String
+  userId    String
+  protocol  TerminalProtocol
+  status    TerminalSessionStatus @default(CONNECTING)
+  clientIp  String?
+  startedAt DateTime              @default(now())
+  endedAt   DateTime?
+  endReason String?
+
+  server   Server               @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  commands TerminalCommandLog[]
+
+  @@index([serverId, startedAt(sort: Desc)])
+  @@index([userId])
+}
+
+model TerminalCommandLog {
+  id         BigInt          @id @default(autoincrement())
+  sessionId  String
+  command    String
+  executedAt DateTime        @default(now())
+  session    TerminalSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, executedAt])
+}
+
+// ---------------------------------------------------------------------------
+// İşlem kayıtları ve ayarlar
+// ---------------------------------------------------------------------------
+
+enum AuditResult {
+  SUCCESS
+  FAILURE
+  DENIED
+}
+
+/// Değiştirilemez işlem kayıtları. Uygulama katmanı yalnızca ekleme yapar.
+model AuditLog {
+  id           BigInt      @id @default(autoincrement())
+  userId       String?
+  actorLabel   String
+  action       String
+  resourceType String?
+  resourceId   String?
+  ipAddress    String?
+  result       AuditResult
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType, resourceId])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

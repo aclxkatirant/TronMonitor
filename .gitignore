@@ -1,0 +1,57 @@
+# Bağımlılıklar
+node_modules/
+.pnp
+.pnp.js
+
+# Ortam dosyaları ve gizli bilgiler
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+config/local.*
+
+# Derleme çıktıları
+dist/
+build/
+out/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Agent derlemeleri
+agent/bin/
+agent/dist/
+*.exe
+*.test
+*.out
+
+# Veritabanı ve yedekler
+*.sql.gz
+*.dump
+backups/
+
+# Günlükler
+logs/
+*.log
+npm-debug.log*
+
+# İşletim sistemi / editör
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/src/generated/
+
+# Claude Code yerel ayarları
+.claude/settings.local.json
