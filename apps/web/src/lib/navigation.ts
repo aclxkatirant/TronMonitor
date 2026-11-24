@@ -26,7 +26,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Genel Bakış', icon: LayoutDashboard, permission: 'dashboard.read' },
-  { href: '/sunucular', label: 'Sunucular', icon: Server, permission: 'servers.read', pending: true },
+  { href: '/sunucular', label: 'Sunucular', icon: Server, permission: 'servers.read' },
   { href: '/izleme', label: 'İzleme', icon: Gauge, permission: 'metrics.read', pending: true },
   { href: '/erisilebilirlik', label: 'Erişilebilirlik', icon: Activity, permission: 'uptime.read', pending: true },
   { href: '/olaylar', label: 'Olaylar', icon: TriangleAlert, permission: 'incidents.read', pending: true },
@@ -40,10 +40,6 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export const PENDING_MODULES: Record<string, { title: string; description: string }> = {
-  sunucular: {
-    title: 'Sunucular',
-    description: 'Sunucu kaydı, ajan kurulum komutları, gruplar ve etiketler bu modülde yer alacak.',
-  },
   izleme: {
     title: 'İzleme',
     description: 'CPU, bellek, disk ve ağ metrikleri ile geçmiş performans grafikleri bu modülde yer alacak.',

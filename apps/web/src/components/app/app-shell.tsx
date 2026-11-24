@@ -16,6 +16,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Brand } from '@/components/app/brand';
 import { hasPermission, useAuthStatus, useLogout, useMe } from '@/hooks/use-auth';
+import { useRealtime } from '@/hooks/use-realtime';
 import { NAV_ITEMS } from '@/lib/navigation';
 import { ROLE_LABELS } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const status = useAuthStatus({ enabled: me.data === null });
   const logout = useLogout();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const realtime = useRealtime(!!me.data);
 
   useEffect(() => {
     if (me.data === null) {
@@ -110,7 +112,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </ul>
-      <div className="border-t border-border p-3 text-[11px] text-muted-foreground">TronMonitor v0.1.0</div>
+      <div className="flex items-center justify-between border-t border-border p-3 text-[11px] text-muted-foreground">
+        <span>TronMonitor v0.1.0</span>
+        <span className="inline-flex items-center gap-1.5" title={realtime.connected ? 'Gerçek zamanlı güncellemeler etkin' : 'Gerçek zamanlı bağlantı yok; veriler düzenli aralıklarla yenilenir'}>
+          <span className={realtime.connected ? 'size-1.5 rounded-full bg-status-ok' : 'size-1.5 rounded-full bg-status-neutral'} aria-hidden />
+          {realtime.connected ? 'Canlı' : 'Yoklama'}
+        </span>
+      </div>
     </nav>
   );
 

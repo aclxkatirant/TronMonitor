@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "TronMonitor - Çapraz platform altyapı yönetim platformu. Tüm altyapınız, tek merkezde.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
   },

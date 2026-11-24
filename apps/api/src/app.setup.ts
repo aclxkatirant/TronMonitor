@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { WsAdapter } from '@nestjs/platform-ws';
 import cookieParser from 'cookie-parser';
 import type { Express } from 'express';
 import helmet from 'helmet';
@@ -20,6 +21,7 @@ export function configureApp(app: INestApplication): void {
 
   app.useLogger(app.get(Logger));
   app.setGlobalPrefix(API_PREFIX);
+  app.useWebSocketAdapter(new WsAdapter(app));
   app.enableShutdownHooks();
   const express = app.getHttpAdapter().getInstance() as Express;
   express.set('trust proxy', 'loopback');

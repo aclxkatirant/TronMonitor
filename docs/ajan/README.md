@@ -21,6 +21,10 @@ Her yayınla birlikte `SHA256SUMS` dosyası üretilir. İndirilen dosyanın öze
 | Windows Server 2019 / 2022 / 2025 | **Henüz doğrulanmadı.** Ajan yalnızca Windows Server 2019'da bulunan API'leri kullanır (kayıt defteri, WMI, performans sayaçları); gerçek sunucuda test edilene kadar uyumluluk "doğrulanmamış" kabul edilir |
 | Ubuntu 22.04 / 24.04, Debian 12 | **Henüz doğrulanmadı.** İkili dosyalar çapraz derlenir; systemd birimi gerçek sistemde test edilmedi |
 
+## Hızlı kurulum (panodan)
+
+**Sunucular → Sunucu ekle** sihirbazı platforma özel tek satırlık bir komut üretir. Komut, `deploy/agent/install-agent.sh` veya `install-agent.ps1` betiğini merkezi sunucudan indirir; betik ikili dosyayı ve `SHA256SUMS` dosyasını indirir, özeti doğrular (uyuşmazsa hiçbir şey çalıştırmaz), ajanı kurar, kaydeder ve hizmeti başlatır. Kaldırmak için `uninstall-agent.sh` / `uninstall-agent.ps1` kullanılır.
+
 ## Komutlar
 
 ```

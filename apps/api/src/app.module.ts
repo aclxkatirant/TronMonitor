@@ -13,6 +13,10 @@ import { UsersModule } from './users/users.module';
 import { RegistrationModule } from './registration/registration.module';
 import { AgentsModule } from './agents/agents.module';
 import { EncryptionModule } from './common/encryption.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { ServersModule } from './servers/servers.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { AgentDownloadsModule } from './agent-downloads/agent-downloads.module';
 import { HealthController } from './health/health.controller';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
 
@@ -41,8 +45,12 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
     EncryptionModule,
     AuthModule,
     UsersModule,
+    RealtimeModule,
     RegistrationModule,
     AgentsModule,
+    ServersModule,
+    DashboardModule,
+    AgentDownloadsModule,
   ],
   controllers: [HealthController],
   providers: [

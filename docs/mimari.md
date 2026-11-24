@@ -78,3 +78,11 @@ Ajanlar yalnızca dışa doğru HTTPS bağlantısı kurar; izlenen sunucularda e
 - **İptal**: kimlik bilgisi `REVOKED` yapıldığında ajan `AGENT_CREDENTIAL_REVOKED` alır ve veri göndermeyi durdurur.
 
 Terminal erişimi bu telemetri kanalından ayrı tutulacaktır (Phase 6).
+
+## Sunucu yönetimi ve gerçek zamanlı kanal
+
+- `GET /servers` listede sunucu başına en son metrik örneğini `DISTINCT ON` sorgusuyla getirir; disk yüzdesi son 1 saatteki hacim örneklerinin toplamından hesaplanır. Sıralama yalnızca sunucu sütunlarında yapılır (ad, durum, işletim sistemi, son heartbeat, kayıt tarihi).
+- `PATCH /servers/:id` ad, açıklama, grup ve etiketleri; `PATCH /servers/:id/agent` toplama aralığını; `POST /servers/:id/agent/revoke` kimlik bilgisini iptal eder (ajan `REVOKED`, sunucu `OFFLINE`). `DELETE /servers/:id` sunucuyu tüm metrik ve olay geçmişiyle siler.
+- Grup ve etiket adları veritabanı yerel ayarından bağımsız olarak Türkçe kurallarıyla (`toLocaleLowerCase('tr-TR')`) benzersizlik denetiminden geçer.
+- `GET /agent-downloads/:file` yalnızca bilinen dosya adlarını (4 ikili, `SHA256SUMS`, 4 betik) sunar; ikili dosyalar özet dosyasında kayıtlı değilse sunulmaz. Dizinler `AGENT_RELEASES_DIR` ve `AGENT_SCRIPTS_DIR` ile değiştirilebilir.
+- WebSocket ağ geçidi `/api/v1/ws` yolunda çalışır; bağlantı oturum çerezi ve `Origin` başlığıyla doğrulanır, `dashboard.read` izni gerekir ve kanal tek yönlüdür (sunucudan istemciye). Olaylar: `server.registered`, `server.updated`, `server.status`, `server.deleted`, `server.metrics`, `agent.revoked`. Arayüz olay geldiğinde ilgili sorguları geçersiz kılar; bağlantı yoksa 20 saniyelik yoklama sürer.

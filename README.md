@@ -16,8 +16,12 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - Web arayüzü: koyu temalı, Türkçe, duyarlı pano kabuğu; giriş, kurulum, genel bakış, hesap ayarları ve kullanıcı yönetimi sayfaları
 - İzleme ajanı (Go): Windows ve Linux için yerel ikili dosyalar; kayıt belirteciyle kayıt, HMAC imzalı ve yeniden oynatmaya karşı korumalı iletişim, heartbeat, CPU/bellek/disk/ağ metrikleri, kesintide tamponlama, Windows hizmeti ve systemd entegrasyonu
 - Ajan API'si: kayıt belirteçleri (oluşturma, listeleme, iptal), ajan kaydı, heartbeat, metrik alımı, çevrimdışı tespiti (BullMQ zamanlayıcı)
+- Sunucu yönetimi: sunucu listesi (arama, işletim sistemi/durum/grup/etiket filtreleri, son CPU/bellek/disk kullanımı), üç adımlı sunucu ekleme sihirbazı (platform → bilgiler → tek satır kurulum komutu, kayıt tamamlanınca canlı bildirim), sunucu ayrıntı sayfası (sistem bilgisi, kullanım, disk hacimleri, ağ arayüzleri, ajan bilgisi, bağlantı geçmişi), düzenleme, silme, ajan erişimini iptal etme, toplama aralığı ayarı, gruplar ve etiketler
+- Ajan dağıtımı: ikili dosyalar ve kurulum betikleri API üzerinden sunulur; `install-agent.sh` / `install-agent.ps1` indirir, SHA-256 özetini doğrular, kaydeder ve hizmeti kurar
+- Gerçek zamanlı pano: WebSocket (`/api/v1/ws`) ile sunucu durumu ve metrik olayları anında yansır; bağlantı yoksa düzenli yoklama devreye girer
+- Genel bakış: toplam/çevrimiçi/çevrimdışı sunucu sayıları, erişilebilirlik yüzdesi, ortalama CPU/bellek/disk kullanımı, son ajan olayları
 
-Sunucu kayıt ekranı, metrik grafikleri, erişilebilirlik kontrolleri, olay yönetimi, hizmet izleme, web terminali ve bildirimler **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
+Metrik grafikleri ve geçmiş analizi, erişilebilirlik kontrolleri, olay yönetimi, hizmet izleme, web terminali ve bildirimler **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
 
 ## Desteklenecek işletim sistemleri
 
@@ -78,4 +82,4 @@ npm run typecheck && npm run lint && npm run build
 
 ## Lisans
 
-Bu depo özel bir projedir; tüm hakları saklıdır.
+TronMonitor, [MIT Lisansı](LICENSE) ile dağıtılır.

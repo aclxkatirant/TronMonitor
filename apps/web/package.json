@@ -39,5 +39,5 @@
     "typescript": "^5"
   },
   "description": "TronMonitor web arayüzü (Next.js)",
-  "license": "UNLICENSED"
+  "license": "MIT"
 }

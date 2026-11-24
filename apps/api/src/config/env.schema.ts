@@ -22,6 +22,8 @@ export const envSchema = z.object({
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 90).default(24),
   COOKIE_SECURE: booleanString.default(false),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  AGENT_RELEASES_DIR: z.string().optional().or(z.literal('')),
+  AGENT_SCRIPTS_DIR: z.string().optional().or(z.literal('')),
   BOOTSTRAP_ADMIN_EMAIL: z.string().email().optional().or(z.literal('')),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().optional().or(z.literal('')),
 });

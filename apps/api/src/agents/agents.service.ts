@@ -13,6 +13,7 @@ import { EncryptionService } from '../common/encryption.service';
 import { AppError } from '../common/app-error';
 import { generateToken } from '../common/crypto';
 import { RegistrationTokensService } from '../registration/registration-tokens.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import type { AuthenticatedAgent } from './agent-auth.guard';
 import type { HeartbeatDto, HostInfoDto, MetricsBatchDto, RegisterAgentDto } from './dto/agent.dto';
 import { randomBytes } from 'node:crypto';
@@ -76,6 +77,7 @@ export class AgentsService {
     private readonly audit: AuditService,
     private readonly encryption: EncryptionService,
     private readonly registrationTokens: RegistrationTokensService,
+    private readonly realtime: RealtimeService,
   ) {}
 
   /**
@@ -158,6 +160,7 @@ export class AgentsService {
       metadata: { serverName, osFamily: dto.host.osFamily, osName: dto.host.osName, agentVersion: dto.agentVersion, tokenId: token.id },
     });
     this.logger.log(`Yeni sunucu kaydedildi: ${serverName} (${dto.host.osFamily})`);
+    this.realtime.emit('server.registered', { serverId: result.id, name: serverName, osFamily: dto.host.osFamily, tokenId: token.id });
 
     return {
       agentId: result.agent!.id,
@@ -218,6 +221,10 @@ export class AgentsService {
         });
       }
     });
+
+    if (reconnecting || current.server.status === ServerStatus.OFFLINE || current.server.status === ServerStatus.PENDING) {
+      this.realtime.emit('server.status', { serverId: current.serverId, status: ServerStatus.ONLINE, agentStatus: AgentStatus.CONNECTED });
+    }
 
     return {
       serverTime: now.toISOString(),
@@ -293,6 +300,13 @@ export class AgentsService {
         this.prisma.networkInterfaceSample.createMany({ data: netRows, skipDuplicates: true }),
         this.prisma.server.update({ where: { id: agent.serverId }, data: { lastHeartbeatAt: new Date() } }),
       ]);
+      const latest = metricRows[metricRows.length - 1];
+      this.realtime.emit('server.metrics', {
+        serverId: agent.serverId,
+        timestamp: latest.timestamp,
+        cpuPercent: latest.cpuPercent,
+        memoryPercent: latest.memoryPercent,
+      });
     }
     return { accepted: metricRows.length, rejected };
   }
@@ -330,6 +344,7 @@ export class AgentsService {
         }),
       ]);
       this.logger.warn(`Sunucu çevrimdışı: ${server.name}`);
+      this.realtime.emit('server.status', { serverId: server.id, status: ServerStatus.OFFLINE, agentStatus: AgentStatus.DISCONNECTED });
     }
     return stale.length;
   }
