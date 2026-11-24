@@ -10,6 +10,9 @@ import { AuditModule } from './audit/audit.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { RegistrationModule } from './registration/registration.module';
+import { AgentsModule } from './agents/agents.module';
+import { EncryptionModule } from './common/encryption.module';
 import { HealthController } from './health/health.controller';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
 
@@ -35,8 +38,11 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
     RedisModule,
     AuditModule,
     PermissionsModule,
+    EncryptionModule,
     AuthModule,
     UsersModule,
+    RegistrationModule,
+    AgentsModule,
   ],
   controllers: [HealthController],
   providers: [

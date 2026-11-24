@@ -33,7 +33,7 @@ export async function createTestApp(): Promise<TestContext> {
   });
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const app = moduleRef.createNestApplication({ bufferLogs: false, logger: false });
+  const app = moduleRef.createNestApplication({ bufferLogs: false, logger: false, rawBody: true });
   configureApp(app);
   await app.init();
 
@@ -53,6 +53,9 @@ export async function createTestApp(): Promise<TestContext> {
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
   // Kalıcı katalog tabloları (Permission, RolePermission) korunur.
   await prisma.auditLog.deleteMany();
+  await prisma.server.deleteMany();
+  await prisma.registrationToken.deleteMany();
+  await prisma.serverGroup.deleteMany();
   await prisma.userSession.deleteMany();
   await prisma.apiToken.deleteMany();
   await prisma.userPermission.deleteMany();

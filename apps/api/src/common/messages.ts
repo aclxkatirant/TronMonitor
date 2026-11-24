@@ -21,6 +21,16 @@ export const MESSAGES = {
   USER_CANNOT_MODIFY_SELF_ROLE: 'Kendi rolünüzü veya hesap durumunuzu değiştiremezsiniz.',
   USER_CANNOT_MODIFY_SUPER_ADMIN: 'Süper yönetici hesapları yalnızca başka bir süper yönetici tarafından düzenlenebilir.',
   USER_LAST_SUPER_ADMIN: 'Sistemdeki son süper yönetici hesabı devre dışı bırakılamaz veya rolü değiştirilemez.',
+  SERVER_GROUP_NOT_FOUND: 'Sunucu grubu bulunamadı.',
+  REGISTRATION_TOKEN_NOT_FOUND: 'Kayıt belirteci bulunamadı.',
+  REGISTRATION_TOKEN_NOT_ACTIVE: 'Bu kayıt belirteci zaten kullanılmış, süresi dolmuş veya iptal edilmiş.',
+  REGISTRATION_TOKEN_INVALID: 'Kayıt belirteci geçersiz, süresi dolmuş veya daha önce kullanılmış.',
+  REGISTRATION_OS_MISMATCH: 'Kayıt belirteci farklı bir işletim sistemi ailesi için oluşturulmuş.',
+  AGENT_AUTH_REQUIRED: 'Ajan kimlik doğrulama başlıkları eksik.',
+  AGENT_AUTH_INVALID: 'Ajan kimlik doğrulaması başarısız.',
+  AGENT_TIMESTAMP_SKEW: 'İstek zaman damgası kabul edilen aralığın dışında. Sunucu saatini denetleyin.',
+  AGENT_REPLAY_DETECTED: 'Bu istek daha önce işlenmiş (yeniden oynatma koruması).',
+  AGENT_CREDENTIAL_REVOKED: 'Bu ajanın kimlik bilgisi iptal edilmiş. Sunucuyu yeniden kaydedin.',
 } as const;
 
 export type MessageCode = keyof typeof MESSAGES;

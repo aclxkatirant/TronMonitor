@@ -14,8 +14,10 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - İşlem kayıtları (altyapı): giriş, çıkış, kayıt, parola ve kullanıcı değişiklikleri veritabanına kaydedilir
 - Güvenlik temelleri: scrypt parola karması, HMAC ile karmalanmış oturum belirteçleri, CSRF koruması, giriş hız sınırı, Helmet başlıkları, sıkı girdi doğrulama
 - Web arayüzü: koyu temalı, Türkçe, duyarlı pano kabuğu; giriş, kurulum, genel bakış, hesap ayarları ve kullanıcı yönetimi sayfaları
+- İzleme ajanı (Go): Windows ve Linux için yerel ikili dosyalar; kayıt belirteciyle kayıt, HMAC imzalı ve yeniden oynatmaya karşı korumalı iletişim, heartbeat, CPU/bellek/disk/ağ metrikleri, kesintide tamponlama, Windows hizmeti ve systemd entegrasyonu
+- Ajan API'si: kayıt belirteçleri (oluşturma, listeleme, iptal), ajan kaydı, heartbeat, metrik alımı, çevrimdışı tespiti (BullMQ zamanlayıcı)
 
-Sunucu kaydı, izleme ajanı, metrikler, erişilebilirlik kontrolleri, olay yönetimi, hizmet izleme, web terminali ve bildirimler **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir.
+Sunucu kayıt ekranı, metrik grafikleri, erişilebilirlik kontrolleri, olay yönetimi, hizmet izleme, web terminali ve bildirimler **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
 
 ## Desteklenecek işletim sistemleri
 

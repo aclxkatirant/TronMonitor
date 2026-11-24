@@ -8,8 +8,8 @@ Bu belge, TronMonitor'un bileşenlerini, aralarındaki iletişimi ve temel tasar
 | --- | --- | --- |
 | Web arayüzü | Next.js (App Router), Tailwind, shadcn/ui | Kimlik doğrulama ve kullanıcı yönetimi hazır |
 | Merkezi API | NestJS, Prisma, PostgreSQL | Kimlik doğrulama, yetkilendirme, kullanıcılar, işlem kayıtları hazır |
-| Kuyruk / önbellek | Redis + BullMQ | Bağlantı hazır; işler henüz tanımlı değil |
-| İzleme ajanı | Go | Henüz uygulanmadı |
+| Kuyruk / önbellek | Redis + BullMQ | Çevrimdışı ajan taraması 30 saniyede bir çalışır |
+| İzleme ajanı | Go | Kayıt, heartbeat, metrikler, Windows hizmeti ve systemd hazır (bkz. docs/ajan) |
 | Bildirim sistemi | Discord / Telegram / E-posta | Henüz uygulanmadı |
 | Terminal yönetimi | SSH / WinRM | Henüz uygulanmadı |
 
@@ -65,6 +65,16 @@ Tüm hatalar aynı gövdeyle döner:
 
 `code` programatik eşleme, `message` kullanıcıya gösterim içindir. Doğrulama hatalarında `details` alanı alan bazlı Türkçe mesajları içerir.
 
-## Planlanan ajan iletişimi
+## Ajan iletişimi
 
-Ajanlar yalnızca dışa doğru HTTPS/WSS bağlantısı kurar; sunucularda ek port açılmaz. Her ajanın benzersiz bir kimliği ve karması saklanan bir sırrı olur (`AgentCredential`). Kayıt, kısa ömürlü ve tek kullanımlık belirteçlerle (`RegistrationToken`) yapılır. Terminal erişimi ajanın telemetri kanalından ayrı tutulur.
+Ajanlar yalnızca dışa doğru HTTPS bağlantısı kurar; izlenen sunucularda ek port açılmaz.
+
+- **Kayıt**: `POST /api/v1/agents/register` kısa ömürlü, tek kullanımlık `tmr_` belirtecini (`RegistrationToken`, SHA-256 karması saklanır) ajan kimlik bilgisiyle takas eder. Sunucu, ajan ve kimlik bilgisi tek veritabanı işleminde oluşturulur; belirteç aynı işlemde "kullanıldı" olarak işaretlenir.
+- **Kimlik bilgisi**: `tma_` anahtar kimliği ve 32 baytlık gizli anahtar. Gizli anahtar merkezde AES-256-GCM ile (`ENCRYPTION_KEY`, AAD = keyId) şifrelenmiş saklanır (`AgentCredential.secretEncrypted`).
+- **İmzalama**: her istek `X-Agent-Key`, `X-Agent-Timestamp`, `X-Agent-Nonce`, `X-Agent-Signature` başlıklarıyla gelir. İmza = HMAC-SHA256(secret, `METHOD\nrequestUri\ntimestamp\nnonce\nsha256hex(body)`). Zaman damgası ±300 saniye içinde olmalı; nonce Redis'te 10 dakika tutulur ve ikinci kullanım `AGENT_REPLAY_DETECTED` ile reddedilir. Doğrulama `AgentAuthGuard` içinde ham istek gövdesi üzerinden yapılır (`rawBody: true`).
+- **Heartbeat** (`/agents/heartbeat`, 30 sn): sürüm ve sistem bilgisi güncellenir, sunucu `ONLINE` olur, yeniden bağlanma ve sürüm değişikliği `AgentConnectionEvent` olarak kaydedilir. Yanıt toplama aralığını taşır.
+- **Metrikler** (`/agents/metrics`): en fazla 120 örneklik yığın; 24 saatten eski veya 5 dakikadan ileri zaman damgaları reddedilir; çift örnekler birincil anahtar sayesinde atlanır.
+- **Çevrimdışı tespiti**: BullMQ `maintenance` kuyruğundaki `agent-status-sweep` işi 30 saniyede bir çalışır; 90 saniye heartbeat almayan sunucular `OFFLINE`, ajanları `DISCONNECTED` olarak işaretlenir ve `DISCONNECTED` olayı yazılır.
+- **İptal**: kimlik bilgisi `REVOKED` yapıldığında ajan `AGENT_CREDENTIAL_REVOKED` alır ve veri göndermeyi durdurur.
+
+Terminal erişimi bu telemetri kanalından ayrı tutulacaktır (Phase 6).

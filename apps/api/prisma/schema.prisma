@@ -242,12 +242,12 @@ enum CredentialStatus {
   REVOKED
 }
 
-/// Ajanın arka uca kimlik doğrulamak için kullandığı anahtar. Sır yalnızca karma olarak saklanır.
+/// Ajanın istekleri HMAC ile imzalamak için kullandığı anahtar. Sır, uygulama anahtarıyla şifrelenmiş saklanır.
 model AgentCredential {
-  id         String           @id @default(uuid())
-  agentId    String
-  keyId      String           @unique
-  secretHash String
+  id              String           @id @default(uuid())
+  agentId         String
+  keyId           String           @unique
+  secretEncrypted String
   status     CredentialStatus @default(ACTIVE)
   issuedAt   DateTime         @default(now())
   expiresAt  DateTime?

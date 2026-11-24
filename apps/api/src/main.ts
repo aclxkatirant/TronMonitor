@@ -7,7 +7,8 @@ import { AppConfigService } from './config/config.service';
 import { API_PREFIX, APP_VERSION } from './version';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  // rawBody: ajan isteklerinin HMAC imzası ham gövde üzerinden doğrulanır.
+  const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });
   configureApp(app);
 
   const config = app.get(AppConfigService);
