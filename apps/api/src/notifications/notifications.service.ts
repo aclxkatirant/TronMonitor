@@ -65,7 +65,7 @@ export class NotificationsService implements OnApplicationBootstrap, OnModuleDes
 
   onApplicationBootstrap(): void {
     if (this.config.isTest) return;
-    this.connection = new Redis(this.config.get('REDIS_URL'), { maxRetriesPerRequest: null, enableReadyCheck: false });
+    this.connection = new Redis(this.config.redisUrl, { maxRetriesPerRequest: null, enableReadyCheck: false });
     this.queue = new Queue(NOTIFICATIONS_QUEUE, { connection: this.connection });
     this.worker = new Worker(
       NOTIFICATIONS_QUEUE,

@@ -29,6 +29,17 @@ export class AppConfigService {
     return this.get('DATABASE_URL');
   }
 
+  /** Test ortamında ayrı bir Redis veritabanı kullanılır; testler flushdb yaptığından geliştirme kuyrukları korunur. */
+  get redisUrl(): string {
+    const base = this.get('REDIS_URL');
+    if (!this.isTest) return base;
+    const override = this.get('TEST_REDIS_URL');
+    if (override) return override;
+    const url = new URL(base);
+    if (!url.pathname || url.pathname === '/' || url.pathname === '/0') url.pathname = '/1';
+    return url.toString();
+  }
+
   get encryptionKey(): Buffer {
     return Buffer.from(this.get('ENCRYPTION_KEY'), 'base64');
   }

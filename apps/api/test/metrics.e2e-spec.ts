@@ -138,7 +138,8 @@ describe('Metrik geçmişi, özetleme ve ayarlar (e2e)', () => {
       data: { serverId: a.serverId, resolution: 'MINUTE_5', bucketStart: new Date(hourAgo + 600_000), cpuAvg: 40, cpuMax: 70, memoryAvg: 40, memoryMax: 50, netRxBpsAvg: 3, netTxBpsAvg: 4, diskUsedPctAvg: 20, sampleCount: 20 },
     });
     await metrics.aggregate();
-    const h1 = await prisma.metricAggregate.findMany({ where: { serverId: a.serverId, resolution: 'HOUR_1' } });
+    // Yalnızca eklenen saat denetlenir; güncel saatin tamamlanmış olması durumunda ek satırlar oluşabilir.
+    const h1 = await prisma.metricAggregate.findMany({ where: { serverId: a.serverId, resolution: 'HOUR_1', bucketStart: new Date(hourAgo) } });
     expect(h1).toHaveLength(1);
     expect(h1[0].cpuAvg).toBeCloseTo(30, 1);
     expect(h1[0].cpuMax).toBe(70);

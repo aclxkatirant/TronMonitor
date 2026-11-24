@@ -23,8 +23,11 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - İzleme ve geçmiş metrikler: son 1 saat / 6 saat / 24 saat / 7 gün / 30 gün ve özel aralık; CPU, bellek, ağ, disk doluluğu, disk G/Ç, yük ortalaması (Linux), hacim ve arayüz bazında grafikler (Recharts, tablo görünümü ve çapraz imleçli ipucu ile); en yoğun sunucular tablosu; sunucu başına metrik sayfası
 - Veri saklama ve özetleme: ham örnekler → 5 dakikalık → saatlik → günlük özetler (BullMQ bakım işleri), ayarlanabilir saklama süreleri, uzun aralıklar özet tablolarından okunur
 - Eşikler: CPU / bellek / disk eşikleri ardışık örneklerde aşılınca sunucu "sorunlu" olur ve toparlanınca normale döner; Ayarlar sayfasından yönetilir
+- Erişilebilirlik kontrolleri: HTTP, HTTPS, TCP ve ICMP (ping) kontrolleri; yeniden deneme, hata/toparlanma eşikleri, SSL sertifika bitiş takibi; yanıt süresi ve erişilebilirlik grafikleri; 24 saat / 7 gün / 30 gün erişilebilirlik yüzdeleri; süre tabanlı güvenilir zamanlayıcı
+- Olay yönetimi: ajan kopması, kontrol kesintisi, kaynak eşiği aşımı ve SSL bitişi için otomatik olay açma ve çözme; üstlenme, not ekleme, elle çözme; zaman çizelgesi ve bildirim geçmişi
+- Bildirimler: Discord webhook, Telegram bot ve SMTP e-posta kanalları; olay türüne göre seçim, test gönderimi, şifreli ve maskelenmiş yapılandırma, kuyruklu ve yeniden denemeli teslim
 
-Erişilebilirlik kontrolleri, olay yönetimi, hizmet izleme, web terminali, bildirimler ve API belirteçleri **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
+Hizmet izleme, web terminali, işlem kayıtları ekranı ve API belirteçleri **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
 
 ## Desteklenecek işletim sistemleri
 

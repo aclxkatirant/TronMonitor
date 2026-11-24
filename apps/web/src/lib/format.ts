@@ -91,3 +91,11 @@ export function describeUserAgent(userAgent: string | null | undefined): string 
             : '';
   return os ? `${browser} · ${os}` : browser;
 }
+
+/** Verilen tarihe kaç gün kaldığını (geçmişse negatif) döndürür. */
+export function daysUntil(value: string | Date | null | undefined, now: Date = new Date()): number | null {
+  if (!value) return null;
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.floor((date.getTime() - now.getTime()) / 86_400_000);
+}

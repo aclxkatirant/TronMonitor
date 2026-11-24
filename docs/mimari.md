@@ -62,6 +62,20 @@ Metrik tabloları (`MetricSample`, `DiskSample`, `NetworkInterfaceSample`) sunuc
 - Saklama ve eşik ayarları `SystemSetting` tablosunda `monitoring` anahtarıyla tutulur (`GET/PUT /settings/monitoring`, `settings.read` / `settings.manage`). Varsayılanlar: ham 7 gün, 5 dk 30 gün, saatlik 365 gün, günlük 730 gün; eşikler CPU/bellek/disk %90, 3 ardışık örnek.
 - Her metrik yığını alındıktan sonra eşikler son N ardışık örnek üzerinde değerlendirilir; aşım varsa sunucu `DEGRADED`, yoksa `ONLINE` olur ve `server.status` olayı yayınlanır. Olay (incident) üretimi Phase 5'te bu durum geçişine bağlanacaktır.
 - Zaman damgaları UTC olarak `timestamp(3)` sütunlarında saklanır; saklama ve pencere sınırları JS tarafında UTC üretilir (`NOW()` oturum saat dilimine bağlı olduğundan kullanılmaz).
+- Test ortamı Redis'in ayrı bir veritabanını (`TEST_REDIS_URL`, varsayılan `/1`) kullanır; e2e testleri `flushdb` yaptığından geliştirme kuyrukları ve zamanlayıcı kayıtları etkilenmez.
+
+## Erişilebilirlik kontrolleri
+
+- Kontroller `MonitoringCheck` tablosunda tutulur; `uptime-run` bakım işi 10 saniyede bir süresi gelenleri (`lastCheckedAt + intervalSec ≤ now`) seçer, önce `lastCheckedAt` ile talep eder (çift çalışmayı önler) ve en fazla 8 eşzamanlı çalıştırır. Kaçırılan çalıştırmalar bir sonraki taramada yakalanır.
+- Çalıştırıcı (`check-runner.ts`): HTTP/HTTPS `fetch` ile (beklenen durum kodu veya 2xx/3xx), TCP `net.connect`, ICMP sistem `ping` komutu (yerelleştirilmiş çıktıyı da ayrıştırır). Başarısızlıkta `retryCount` kadar 1 sn arayla yeniden denenir; HTTPS'te sertifika bitişi ayrıca TLS el sıkışmasıyla okunur.
+- Durum makinesi: `failureThreshold` ardışık başarısızlıkta `DOWN` (CHECK_DOWN olayı, kritik), `recoveryThreshold` ardışık başarıda `UP` (olay çözülür). SSL bitişine `sslExpiryWarnDays` gün kala SSL_EXPIRING olayı (3 gün ve altı kritik), yenilenince çözülür.
+- Her çalıştırma `CheckResult` satırı üretir (30 gün saklanır). Geçmiş `date_bin` ile özetlenir; erişilebilirlik yüzdesi başarılı/toplam oranıdır.
+
+## Olay yaşam döngüsü ve bildirimler
+
+- `IncidentsService.open` aynı tür ve hedef için yalnızca bir etkin olay tutar (tekilleştirme); `resolveAuto` sistem tarafından, `resolveManual`/`acknowledge`/`addNote` kullanıcı tarafından çağrılır. Her adım `IncidentEvent` ve işlem kaydı üretir; `incident.created` / `incident.updated` WebSocket olayları yayınlanır.
+- Kaynaklar: ajan taraması (AGENT_DISCONNECTED, kritik), heartbeat ile yeniden bağlanma (çözüm), eşik değerlendirmesi (HIGH_CPU / HIGH_MEMORY / LOW_DISK, uyarı; eşik altına inince çözüm), ajan iptali (bağlantı olayını kapatır), kontroller (CHECK_DOWN, SSL_EXPIRING).
+- Bildirim kanalları `NotificationChannel` tablosunda AES-256-GCM ile şifreli yapılandırma tutar (AAD = kanal türü); okumada sırlar maskelenir, güncellemede boş bırakılan sır alanları korunur. Olay açıldığında türü, çözüldüğünde eşlenen toparlanma olayı (`notification-events.ts`) etkin kanallarla eşleştirilir; her gönderim `Notification` satırı olarak kuyruğa alınır ve `notifications` BullMQ kuyruğu 5 denemeye kadar üstel geri çekilmeyle teslim eder. Test ortamında kuyruk başlatılmaz; `deliverPending()` doğrudan çağrılır.
 
 ## Hata biçimi
 

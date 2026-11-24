@@ -222,7 +222,133 @@ export interface DashboardSummary {
 }
 
 export interface RealtimeEvent {
-  type: 'hello' | 'server.registered' | 'server.updated' | 'server.status' | 'server.deleted' | 'server.metrics' | 'agent.revoked';
+  type: 'hello' | 'server.registered' | 'server.updated' | 'server.status' | 'server.deleted' | 'server.metrics' | 'agent.revoked' | 'incident.created' | 'incident.updated' | 'check.status';
   payload: Record<string, unknown>;
   at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Olaylar, bildirimler, erişilebilirlik
+// ---------------------------------------------------------------------------
+
+export type IncidentType = 'SERVER_UNAVAILABLE' | 'AGENT_DISCONNECTED' | 'SERVICE_FAILURE' | 'HIGH_CPU' | 'HIGH_MEMORY' | 'LOW_DISK' | 'NETWORK_FAILURE' | 'SSL_EXPIRING' | 'CHECK_DOWN';
+export type IncidentSeverity = 'INFO' | 'WARNING' | 'CRITICAL';
+export type IncidentStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+
+export const INCIDENT_STATUS_LABELS: Record<IncidentStatus, string> = { OPEN: 'Açık', ACKNOWLEDGED: 'Üstlenildi', RESOLVED: 'Çözüldü' };
+
+export interface IncidentListItem {
+  id: string;
+  type: IncidentType;
+  typeLabel: string;
+  severity: IncidentSeverity;
+  severityLabel: string;
+  status: IncidentStatus;
+  title: string;
+  description: string | null;
+  server: { id: string; name: string } | null;
+  check: { id: string; name: string } | null;
+  startedAt: string;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+  resolutionNote: string | null;
+  durationSeconds: number;
+  updatedAt: string;
+}
+
+export interface IncidentDetail extends IncidentListItem {
+  events: { id: string; kind: string; message: string; userName: string | null; createdAt: string }[];
+  notifications: { id: string; channelName: string; channelType: NotificationChannelType; eventType: string; status: NotificationStatus; attempts: number; lastError: string | null; sentAt: string | null }[];
+}
+
+export type NotificationChannelType = 'DISCORD' | 'TELEGRAM' | 'EMAIL';
+export type NotificationStatus = 'PENDING' | 'SENT' | 'FAILED';
+
+export interface NotificationChannel {
+  id: string;
+  name: string;
+  type: NotificationChannelType;
+  config?: Record<string, unknown>;
+  enabledEvents: string[];
+  isEnabled: boolean;
+  lastTestedAt: string | null;
+  lastTestResult: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NotificationCatalog {
+  events: { key: string; label: string }[];
+  types: { value: NotificationChannelType; label: string }[];
+}
+
+export interface RecentNotification {
+  id: string;
+  channelName: string;
+  channelType: NotificationChannelType;
+  eventType: string;
+  eventLabel: string;
+  incident: { id: string; title: string } | null;
+  status: NotificationStatus;
+  attempts: number;
+  lastError: string | null;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+export type CheckType = 'HTTP' | 'HTTPS' | 'TCP' | 'ICMP';
+export type CheckStatus = 'PENDING' | 'UP' | 'DOWN';
+export const CHECK_STATUS_LABELS: Record<CheckStatus, string> = { PENDING: 'Bekliyor', UP: 'Erişilebilir', DOWN: 'Erişilemiyor' };
+
+export interface UptimeCheck {
+  id: string;
+  name: string;
+  type: CheckType;
+  typeLabel: string;
+  target: string;
+  port: number | null;
+  method: string | null;
+  expectedStatusCode: number | null;
+  intervalSec: number;
+  timeoutSec: number;
+  retryCount: number;
+  failureThreshold: number;
+  recoveryThreshold: number;
+  sslExpiryWarnDays: number | null;
+  sslExpiresAt: string | null;
+  notifyOnFailure: boolean;
+  isEnabled: boolean;
+  status: CheckStatus;
+  consecutiveFails: number;
+  consecutiveOks: number;
+  lastCheckedAt: string | null;
+  lastStatusChangeAt: string | null;
+  lastResponseMs: number | null;
+  server: { id: string; name: string } | null;
+  uptime24h: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UptimeCheckDetail extends UptimeCheck {
+  uptime7d: number | null;
+  uptime30d: number | null;
+  activeIncidents: { id: string; type: IncidentType; severity: IncidentSeverity; title: string; startedAt: string }[];
+}
+
+export interface CheckResultItem {
+  id: string;
+  checkedAt: string;
+  isUp: boolean;
+  responseTimeMs: number | null;
+  statusCode: number | null;
+  errorMessage: string | null;
+  sslExpiresAt: string | null;
+}
+
+export interface CheckHistory {
+  range: { from: string; to: string; bucketSeconds: number };
+  points: { t: string; avgMs: number | null; maxMs: number | null; availability: number | null; samples: number }[];
 }

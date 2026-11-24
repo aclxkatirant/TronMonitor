@@ -46,7 +46,7 @@ export class MaintenanceService implements OnApplicationBootstrap, OnModuleDestr
   async onApplicationBootstrap(): Promise<void> {
     if (this.config.isTest || this.registrations.size === 0) return;
     // BullMQ engelleyen komutlar kullandığından kendi bağlantısını ve maxRetriesPerRequest=null ister.
-    this.connection = new Redis(this.config.get('REDIS_URL'), { maxRetriesPerRequest: null, enableReadyCheck: false });
+    this.connection = new Redis(this.config.redisUrl, { maxRetriesPerRequest: null, enableReadyCheck: false });
     this.queue = new Queue(MAINTENANCE_QUEUE, { connection: this.connection });
     for (const [name, registration] of this.registrations) {
       await this.queue.upsertJobScheduler(name, { every: registration.everyMs }, { name, opts: { removeOnComplete: 20, removeOnFail: 50 } });

@@ -12,6 +12,7 @@ export const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL zorunludur'),
   TEST_DATABASE_URL: z.string().optional(),
   REDIS_URL: z.string().min(1).default('redis://127.0.0.1:6379'),
+  TEST_REDIS_URL: z.string().optional().or(z.literal('')),
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET en az 32 karakter olmalıdır'),
   ENCRYPTION_KEY: z
     .string()
