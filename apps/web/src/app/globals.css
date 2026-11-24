@@ -143,4 +143,17 @@
   --status-error: oklch(0.65 0.2 25);
   --status-neutral: oklch(0.6 0 0);
   --accent-brand: oklch(0.72 0.12 200);
+
+  /* Grafik serileri: koyu yüzey için doğrulanmış kategorik palet (sabit sırayla atanır, asla döngüsel değil) */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #0ca30c;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-muted: #898781;
 }

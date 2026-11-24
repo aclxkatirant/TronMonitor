@@ -53,7 +53,15 @@ Depo bir npm çalışma alanıdır (workspaces); bağımlılıklar kök dizinde 
 
 Şema `apps/api/prisma/schema.prisma` dosyasındadır ve Prisma Migrate ile yönetilir. Tüm ürün modelleri (sunucular, ajanlar, metrikler, kontroller, olaylar, bildirimler, terminal, işlem kayıtları) ilk göçte tanımlanmıştır; ilgili modüller geliştirildikçe tablolar kullanılmaya başlanır.
 
-Metrik tabloları (`MetricSample`, `DiskSample`, `NetworkInterfaceSample`) sunucu ve zaman damgasıyla bileşik birincil anahtar kullanır; uzun dönem grafikler için `MetricAggregate` tablosu 5 dakika / 1 saat / 1 gün çözünürlüklerinde özet tutar. Saklama politikası arka plan işleriyle uygulanacaktır.
+Metrik tabloları (`MetricSample`, `DiskSample`, `NetworkInterfaceSample`) sunucu ve zaman damgasıyla bileşik birincil anahtar kullanır; uzun dönem grafikler için `MetricAggregate` tablosu 5 dakika / 1 saat / 1 gün çözünürlüklerinde özet tutar.
+
+## Metrik geçmişi, özetleme ve saklama
+
+- `GET /servers/:id/metrics?range=1h|6h|24h|7d|30d|custom` isteğin aralığına göre kaynak seçer: aralık ham saklama penceresi (varsayılan 7 gün) içindeyse ham örnekler `date_bin` ile ~360 noktaya özetlenir; dışındaysa sırasıyla 5 dakikalık, saatlik veya günlük `MetricAggregate` satırları okunur (örnek sayısıyla ağırlıklı ortalama). Hacim ve arayüz bazlı geçmiş yalnızca ham pencerede sunulur.
+- Paylaşılan `MaintenanceService` (BullMQ `maintenance` kuyruğu, tek worker) üç işi çalıştırır: `agent-status-sweep` (30 sn), `metrics-aggregate` (5 dk: son 2 saatin 5 dakikalık özetleri, son 26 saatin saatlik özetleri ve son 3 günün günlük özetleri `ON CONFLICT DO UPDATE` ile yeniden hesaplanır; geç gelen tamponlanmış örnekler böylece dahil olur) ve `retention` (saatlik: ham örnekler, özetler, süresi dolmuş oturum ve kayıt belirteçleri temizlenir). Test ortamında zamanlayıcı başlatılmaz; işler doğrudan çağrılır.
+- Saklama ve eşik ayarları `SystemSetting` tablosunda `monitoring` anahtarıyla tutulur (`GET/PUT /settings/monitoring`, `settings.read` / `settings.manage`). Varsayılanlar: ham 7 gün, 5 dk 30 gün, saatlik 365 gün, günlük 730 gün; eşikler CPU/bellek/disk %90, 3 ardışık örnek.
+- Her metrik yığını alındıktan sonra eşikler son N ardışık örnek üzerinde değerlendirilir; aşım varsa sunucu `DEGRADED`, yoksa `ONLINE` olur ve `server.status` olayı yayınlanır. Olay (incident) üretimi Phase 5'te bu durum geçişine bağlanacaktır.
+- Zaman damgaları UTC olarak `timestamp(3)` sütunlarında saklanır; saklama ve pencere sınırları JS tarafında UTC üretilir (`NOW()` oturum saat dilimine bağlı olduğundan kullanılmaz).
 
 ## Hata biçimi
 

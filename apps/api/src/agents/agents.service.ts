@@ -14,6 +14,7 @@ import { AppError } from '../common/app-error';
 import { generateToken } from '../common/crypto';
 import { RegistrationTokensService } from '../registration/registration-tokens.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { MetricsService } from '../metrics/metrics.service';
 import type { AuthenticatedAgent } from './agent-auth.guard';
 import type { HeartbeatDto, HostInfoDto, MetricsBatchDto, RegisterAgentDto } from './dto/agent.dto';
 import { randomBytes } from 'node:crypto';
@@ -78,6 +79,7 @@ export class AgentsService {
     private readonly encryption: EncryptionService,
     private readonly registrationTokens: RegistrationTokensService,
     private readonly realtime: RealtimeService,
+    private readonly metrics: MetricsService,
   ) {}
 
   /**
@@ -307,8 +309,25 @@ export class AgentsService {
         cpuPercent: latest.cpuPercent,
         memoryPercent: latest.memoryPercent,
       });
+      await this.applyThresholds(agent.serverId);
     }
     return { accepted: metricRows.length, rejected };
+  }
+
+  /** Eşik aşımına göre sunucuyu DEGRADED / ONLINE arasında geçirir (yalnızca çevrimiçi sunucular için). */
+  private async applyThresholds(serverId: string): Promise<void> {
+    const server = await this.prisma.server.findUnique({ where: { id: serverId }, select: { status: true, name: true } });
+    if (!server || (server.status !== ServerStatus.ONLINE && server.status !== ServerStatus.DEGRADED)) return;
+    const evaluation = await this.metrics.evaluateThresholds(serverId);
+    const next = evaluation.degraded ? ServerStatus.DEGRADED : ServerStatus.ONLINE;
+    if (next === server.status) return;
+    await this.prisma.server.update({ where: { id: serverId }, data: { status: next } });
+    if (next === ServerStatus.DEGRADED) {
+      this.logger.warn(`Sunucu sorunlu: ${server.name} (${evaluation.reasons.join(', ')})`);
+    } else {
+      this.logger.log(`Sunucu normale döndü: ${server.name}`);
+    }
+    this.realtime.emit('server.status', { serverId, status: next, reasons: evaluation.reasons });
   }
 
   /**

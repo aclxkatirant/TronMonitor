@@ -20,8 +20,11 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - Ajan dağıtımı: ikili dosyalar ve kurulum betikleri API üzerinden sunulur; `install-agent.sh` / `install-agent.ps1` indirir, SHA-256 özetini doğrular, kaydeder ve hizmeti kurar
 - Gerçek zamanlı pano: WebSocket (`/api/v1/ws`) ile sunucu durumu ve metrik olayları anında yansır; bağlantı yoksa düzenli yoklama devreye girer
 - Genel bakış: toplam/çevrimiçi/çevrimdışı sunucu sayıları, erişilebilirlik yüzdesi, ortalama CPU/bellek/disk kullanımı, son ajan olayları
+- İzleme ve geçmiş metrikler: son 1 saat / 6 saat / 24 saat / 7 gün / 30 gün ve özel aralık; CPU, bellek, ağ, disk doluluğu, disk G/Ç, yük ortalaması (Linux), hacim ve arayüz bazında grafikler (Recharts, tablo görünümü ve çapraz imleçli ipucu ile); en yoğun sunucular tablosu; sunucu başına metrik sayfası
+- Veri saklama ve özetleme: ham örnekler → 5 dakikalık → saatlik → günlük özetler (BullMQ bakım işleri), ayarlanabilir saklama süreleri, uzun aralıklar özet tablolarından okunur
+- Eşikler: CPU / bellek / disk eşikleri ardışık örneklerde aşılınca sunucu "sorunlu" olur ve toparlanınca normale döner; Ayarlar sayfasından yönetilir
 
-Metrik grafikleri ve geçmiş analizi, erişilebilirlik kontrolleri, olay yönetimi, hizmet izleme, web terminali ve bildirimler **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
+Erişilebilirlik kontrolleri, olay yönetimi, hizmet izleme, web terminali, bildirimler ve API belirteçleri **henüz uygulanmamıştır**; arayüzde bu modüller "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
 
 ## Desteklenecek işletim sistemleri
 

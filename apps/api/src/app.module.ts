@@ -17,6 +17,9 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { ServersModule } from './servers/servers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { AgentDownloadsModule } from './agent-downloads/agent-downloads.module';
+import { QueueModule } from './queue/queue.module';
+import { SettingsModule } from './settings/settings.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { HealthController } from './health/health.controller';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
 
@@ -45,10 +48,13 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
     EncryptionModule,
     AuthModule,
     UsersModule,
+    QueueModule,
+    SettingsModule,
     RealtimeModule,
     RegistrationModule,
     AgentsModule,
     ServersModule,
+    MetricsModule,
     DashboardModule,
     AgentDownloadsModule,
   ],

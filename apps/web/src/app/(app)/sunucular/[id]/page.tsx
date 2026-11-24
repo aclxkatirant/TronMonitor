@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { ArrowLeft, Ban, Pencil, Trash2 } from 'lucide-react';
+import { ArrowLeft, Ban, LineChart, Pencil, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/app/page-header';
 import { AgentStatusBadge, ColorDot, ServerStatusBadge, UsageMeter } from '@/components/app/status';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -321,6 +321,7 @@ export default function ServerDetailPage() {
   const canManage = hasPermission(me.data, 'servers.manage');
   const canManageAgent = hasPermission(me.data, 'agents.manage');
   const canDelete = hasPermission(me.data, 'servers.delete');
+  const canReadMetrics = hasPermission(me.data, 'metrics.read');
   const server = useServer(params.id);
   const invalidate = useInvalidateServers();
   const [editOpen, setEditOpen] = useState(false);
@@ -374,6 +375,13 @@ export default function ServerDetailPage() {
                 <ArrowLeft /> Sunucular
               </Link>
             </Button>
+            {canReadMetrics && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/sunucular/${s.id}/metrikler`}>
+                  <LineChart /> Metrikler
+                </Link>
+              </Button>
+            )}
             {canManage && (
               <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                 <Pencil /> Düzenle

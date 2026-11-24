@@ -27,7 +27,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Genel Bakış', icon: LayoutDashboard, permission: 'dashboard.read' },
   { href: '/sunucular', label: 'Sunucular', icon: Server, permission: 'servers.read' },
-  { href: '/izleme', label: 'İzleme', icon: Gauge, permission: 'metrics.read', pending: true },
+  { href: '/izleme', label: 'İzleme', icon: Gauge, permission: 'metrics.read' },
   { href: '/erisilebilirlik', label: 'Erişilebilirlik', icon: Activity, permission: 'uptime.read', pending: true },
   { href: '/olaylar', label: 'Olaylar', icon: TriangleAlert, permission: 'incidents.read', pending: true },
   { href: '/hizmetler', label: 'Hizmetler', icon: Boxes, permission: 'services.read', pending: true },
@@ -36,14 +36,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/islem-kayitlari', label: 'İşlem Kayıtları', icon: ClipboardList, permission: 'audit.read', pending: true },
   { href: '/api-yonetimi', label: 'API Yönetimi', icon: KeyRound, permission: 'apitokens.own', pending: true },
   { href: '/kullanicilar', label: 'Kullanıcılar', icon: Users, permission: 'users.read' },
-  { href: '/ayarlar', label: 'Ayarlar', icon: Settings, permission: 'settings.read', pending: true },
+  { href: '/ayarlar', label: 'Ayarlar', icon: Settings, permission: 'settings.read' },
 ];
 
 export const PENDING_MODULES: Record<string, { title: string; description: string }> = {
-  izleme: {
-    title: 'İzleme',
-    description: 'CPU, bellek, disk ve ağ metrikleri ile geçmiş performans grafikleri bu modülde yer alacak.',
-  },
   erisilebilirlik: {
     title: 'Erişilebilirlik',
     description: 'HTTP, HTTPS, TCP ve ICMP kontrolleri ile SSL sertifika takibi bu modülde yer alacak.',
@@ -71,9 +67,5 @@ export const PENDING_MODULES: Record<string, { title: string; description: strin
   'api-yonetimi': {
     title: 'API Yönetimi',
     description: 'Programatik erişim için API belirteçleri bu modülde yönetilecek.',
-  },
-  ayarlar: {
-    title: 'Ayarlar',
-    description: 'Sistem genelindeki ayarlar bu modülde yönetilecek.',
   },
 };
