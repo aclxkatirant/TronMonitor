@@ -99,7 +99,7 @@ npm run typecheck && npm run lint && npm run build
 
 ## Güvenlik notları
 
-- Parolalar scrypt ile karmalanır; oturum belirteçleri yalnızca HMAC karması olarak saklanır.
+- Parolalar scrypt ile karmalanır; oturum belirteçleri yalnızca HMAC karması olarak saklanır ve güvenlidir.
 - Oturum çerezi `HttpOnly` ve `SameSite=Lax` olarak verilir; değiştirici isteklerde `X-Requested-With` başlığı zorunludur (CSRF koruması).
 - Tüm yetki denetimleri arka uçta yapılır; arayüz yalnızca görünürlüğü düzenler.
 - Kendi kendine kayıt varsayılan olarak kapalıdır; ilk hesap kurulum ekranından oluşturulur.
