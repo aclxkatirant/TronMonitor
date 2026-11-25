@@ -40,3 +40,12 @@ Pano Chromium tabanlı tarayıcıda (Claude masaüstü tarayıcı paneli) doğru
 ## Nasıl doğrulanır
 
 Bir ortamı doğrulamak için: kurulum betiğini çalıştırın, `health` ucunu ve `/kurulum` akışını deneyin, bir ajan kaydedip sunucunun çevrimiçi olduğunu, hizmet listesinin geldiğini ve terminalin açıldığını görün; sonucu bu tabloya işleyin (tarih ve sürüm ile).
+
+### Yalnızca ajanı canlı bir sunucuda doğrulama
+
+Merkezi sunucu kurulmadan, geliştirme makinesindeki merkez kullanılarak yalnızca ajan sınanabilir. Ajan sunucuya iki dizin (`C:\Program Files\TronMonitor\Agent`, `C:\ProgramData\TronMonitor\Agent` / Linux'ta `/opt/tronmonitor`, `/etc/tronmonitor`, `/var/log/tronmonitor`) ve tek bir hizmet yazar; güvenlik duvarı, kayıt defteri veya başka bir ayara dokunmaz, port açmaz, yeniden başlatma gerektirmez. Kaldırma betiği hepsini geri alır.
+
+1. Geliştirme makinesinde API'yi yerel ağa açın: `.claude/launch.json` içindeki `api-lan` yapılandırması `API_HOST=0.0.0.0` ile başlatır. Güvenlik duvarında 4000 portunu yalnızca sınanacak sunucunun IP'sine açın.
+2. Panoda **Sunucular → Sunucu ekle** ile kayıt belirteci üretin; komuttaki adresi `http://<geliştirme-makinesi-ip>:4000` olarak kullanın. HTTP olduğundan `-AllowHttp` / `--allow-http` gerekir ve ajanın gizli anahtarı kayıt sırasında yerel ağda şifresiz gider; test bitince kayıt silinmelidir.
+3. Sunucuda betiği önce dosyaya indirin, inceleyin, sonra yönetici oturumunda çalıştırın. Panoda çevrimiçi durumu, metrikleri ve hizmet listesini görün. Terminali yalnızca salt okunur komutlarla (`whoami`, `hostname`) sınayın; terminal hizmet hesabıyla (Windows'ta SYSTEM) çalışır. Canlı sunucuda hizmet başlat/durdur komutunu denemeyin ya da zararsız bir hizmet seçin.
+4. Kaldırma betiğini çalıştırın, panodan sunucu kaydını silin, güvenlik duvarı kuralını kaldırın ve bu tabloyu tarih ve sürümle güncelleyin.
