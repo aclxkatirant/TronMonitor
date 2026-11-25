@@ -3,12 +3,18 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AppConfigService } from '../config/config.service';
+import { AppError } from '../common/app-error';
 import { AuthService, type RequestMeta } from './auth.service';
 import { CurrentUser, Public, clientIp } from './decorators';
 import { SESSION_COOKIE_NAME, type AuthenticatedUser } from './auth.types';
 import { ChangePasswordDto, LoginDto, RegisterDto } from './dto/auth.dto';
 
 const LOGIN_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
+
+/** Hesap yönetimi uçları kapsamlı API belirteçleriyle kullanılamaz; yalnızca tarayıcı oturumu. */
+function assertBrowserSession(user: AuthenticatedUser): void {
+  if (user.authMethod !== 'session') throw AppError.forbidden('AUTH_SESSION_REQUIRED');
+}
 
 @ApiTags('Kimlik doğrulama')
 @Controller('auth')
@@ -73,6 +79,7 @@ export class AuthController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Geçerli oturumu kapat' })
   async logout(@CurrentUser() user: AuthenticatedUser, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    assertBrowserSession(user);
     await this.auth.logout(user, this.meta(request));
     this.clearSessionCookie(response);
   }
@@ -85,14 +92,17 @@ export class AuthController {
 
   @Post('change-password')
   @HttpCode(200)
+  @Throttle(LOGIN_THROTTLE)
   @ApiOperation({ summary: 'Parola değiştir; diğer oturumlar kapatılır' })
   changePassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChangePasswordDto, @Req() request: Request) {
+    assertBrowserSession(user);
     return this.auth.changePassword(user, dto, this.meta(request));
   }
 
   @Get('sessions')
   @ApiOperation({ summary: 'Etkin oturumları listele' })
   sessions(@CurrentUser() user: AuthenticatedUser) {
+    assertBrowserSession(user);
     return this.auth.listSessions(user);
   }
 
@@ -100,6 +110,7 @@ export class AuthController {
   @HttpCode(204)
   @ApiOperation({ summary: 'Belirli bir oturumu sonlandır' })
   async revokeSession(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    assertBrowserSession(user);
     await this.auth.revokeSession(user, id, this.meta(request));
     if (id === user.sessionId) this.clearSessionCookie(response);
   }

@@ -6,7 +6,7 @@ import { AppError, type ErrorBody } from '../common/app-error';
 import { MESSAGES } from '../common/messages';
 import { PERMISSIONS } from '../permissions/permission-catalog';
 import { AgentAuthGuard } from '../agents/agent-auth.guard';
-import { WsAuthService, remoteIp } from '../realtime/ws-auth.service';
+import { WsAuthService, remoteIp, type WsUser } from '../realtime/ws-auth.service';
 import { TerminalService, type LiveSession } from './terminal.service';
 import type { BrowserMessage } from './terminal.types';
 
@@ -30,7 +30,12 @@ export class TerminalGateway implements OnGatewayConnection {
       socket.close(4003, 'origin not allowed');
       return;
     }
-    const user = await this.wsAuth.authenticate(request);
+    let user: WsUser | null = null;
+    try {
+      user = await this.wsAuth.authenticate(request);
+    } catch (error) {
+      this.logger.warn(`Terminal kimlik doğrulaması başarısız: ${error instanceof Error ? error.message : String(error)}`);
+    }
     if (!user) {
       socket.close(4001, 'unauthorized');
       return;

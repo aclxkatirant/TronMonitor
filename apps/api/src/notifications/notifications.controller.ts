@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser, RequirePermissions, clientIp } from '../auth/decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -54,6 +55,7 @@ export class NotificationsController {
   }
 
   @Post(':id/test')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(200)
   @RequirePermissions(PERMISSIONS.NOTIFICATIONS_MANAGE)
   @ApiOperation({ summary: 'Kanala test bildirimi gönder' })

@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { Injectable } from '@nestjs/common';
 import type { User, UserSession } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -13,6 +14,8 @@ export interface ValidatedSession {
 
 @Injectable()
 export class SessionService {
+  /** Oturum iptalleri: ('session', sessionId) ve ('user', userId, exceptSessionId?). WebSocket kanalları dinler. */
+  readonly revocations = new EventEmitter();
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: AppConfigService,
@@ -60,6 +63,7 @@ export class SessionService {
       where: { id: sessionId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    this.revocations.emit('session', sessionId);
   }
 
   async revokeAllForUser(userId: string, exceptSessionId?: string): Promise<number> {
@@ -71,6 +75,7 @@ export class SessionService {
       },
       data: { revokedAt: new Date() },
     });
+    this.revocations.emit('user', userId, exceptSessionId);
     return result.count;
   }
 

@@ -21,7 +21,8 @@ export const envSchema = z.object({
       message: 'ENCRYPTION_KEY base64 kodlanmış 32 baytlık bir anahtar olmalıdır',
     }),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 90).default(24),
-  COOKIE_SECURE: booleanString.default(false),
+  // Üretimde varsayılan olarak açık; yalnızca açıkça false verilirse kapanır (HTTPS olmayan iç ağ kurulumları).
+  COOKIE_SECURE: booleanString.optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   AGENT_RELEASES_DIR: z.string().optional().or(z.literal('')),
   AGENT_SCRIPTS_DIR: z.string().optional().or(z.literal('')),
@@ -29,7 +30,7 @@ export const envSchema = z.object({
   BOOTSTRAP_ADMIN_PASSWORD: z.string().optional().or(z.literal('')),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Env = Omit<z.infer<typeof envSchema>, 'COOKIE_SECURE'> & { COOKIE_SECURE: boolean };
 
 export function validateEnv(raw: Record<string, unknown>): Env {
   const result = envSchema.safeParse(raw);
@@ -39,5 +40,10 @@ export function validateEnv(raw: Record<string, unknown>): Env {
       .join('\n');
     throw new Error(`Ortam değişkenleri geçersiz:\n${details}`);
   }
-  return result.data;
+  const env = result.data;
+  const isProduction = env.NODE_ENV === 'production';
+  if (isProduction && env.WEB_ORIGIN.startsWith('http://') && env.COOKIE_SECURE !== false) {
+    throw new Error('Üretimde WEB_ORIGIN http:// ise COOKIE_SECURE=false açıkça verilmelidir (HTTPS olmadan güvenli çerez gönderilemez); HTTPS kullanmanız önerilir.');
+  }
+  return { ...env, COOKIE_SECURE: env.COOKIE_SECURE ?? isProduction };
 }

@@ -1,0 +1,36 @@
+[Unit]
+Description=TronMonitor Web (Next.js)
+Documentation=https://github.com/aclxkatirant/TronMonitor
+After=network-online.target tronmonitor-api.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tronmonitor
+Group=tronmonitor
+WorkingDirectory=/opt/tronmonitor/app/apps/web
+Environment=NODE_ENV=production
+Environment=API_INTERNAL_URL=http://127.0.0.1:4000
+Environment=NEXT_TELEMETRY_DISABLED=1
+# Yalnızca yerel arabirimde dinler; dışarıya Nginx açar.
+# next, npm çalışma alanı kökündeki node_modules altındadır.
+ExecStart=/usr/bin/node /opt/tronmonitor/app/node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+# Next.js .next/cache dizinine yazar.
+ReadWritePaths=/opt/tronmonitor/app/apps/web/.next
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

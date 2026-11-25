@@ -7,6 +7,7 @@ import { AppError } from '../common/app-error';
 import { MESSAGES, type MessageCode } from '../common/messages';
 import { PERMISSIONS } from '../permissions/permission-catalog';
 import { ServicesService } from '../services/services.service';
+import { SessionService } from '../auth/session.service';
 import type { AuthenticatedUser } from '../auth/auth.types';
 import type { AuthenticatedAgent } from '../agents/agent-auth.guard';
 import type { WsUser } from '../realtime/ws-auth.service';
@@ -36,6 +37,8 @@ export interface LiveSession {
   serverId: string;
   serverName: string;
   userId: string;
+  /** Oturumu açan tarayıcı oturumu; iptal edilince terminal kapanır. */
+  sessionId: string;
   userEmail: string;
   protocol: TerminalProtocol;
   browser: WebSocket;
@@ -69,6 +72,7 @@ export class TerminalService implements OnModuleInit, OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly credentials: CredentialsService,
     private readonly services: ServicesService,
+    private readonly sessions: SessionService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -79,6 +83,15 @@ export class TerminalService implements OnModuleInit, OnModuleDestroy {
     });
     if (stale.count > 0) this.logger.warn(`${stale.count} yarım kalmış terminal oturumu sonlandırıldı olarak işaretlendi`);
     this.services.commandResults.on('result', (command: AgentCommand, ok: boolean, message?: string) => this.onCommandResult(command, ok, message));
+    // Kullanıcı devre dışı bırakılır, parolası değişir veya oturumu kapatılırsa açık terminaller de kapanır.
+    this.sessions.revocations.on('session', (sessionId: string) => void this.endWhere((s) => s.sessionId === sessionId, 'Tarayıcı oturumu sonlandırıldı'));
+    this.sessions.revocations.on('user', (userId: string, except?: string) => void this.endWhere((s) => s.userId === userId && s.sessionId !== except, 'Kullanıcı oturumları sonlandırıldı'));
+  }
+
+  private async endWhere(predicate: (session: LiveSession) => boolean, reason: string): Promise<void> {
+    for (const session of [...this.live.values()]) {
+      if (predicate(session)) await this.end(session, TerminalSessionStatus.TERMINATED, reason);
+    }
   }
 
   onModuleDestroy(): void {
@@ -110,7 +123,7 @@ export class TerminalService implements OnModuleInit, OnModuleDestroy {
 
     const { cols, rows } = clampSize(request.cols, request.rows);
     const row = await this.prisma.terminalSession.create({ data: { serverId: server.id, userId: user.id, protocol, clientIp: ipAddress } });
-    const session: LiveSession = { id: row.id, serverId: server.id, serverName: server.name, userId: user.id, userEmail: user.email, protocol, browser, backend: null, status: 'CONNECTING', parser: new CommandLineParser(), cols, rows, startedAt: Date.now(), commandCount: 0, logWrites: [] };
+    const session: LiveSession = { id: row.id, serverId: server.id, serverName: server.name, userId: user.id, sessionId: user.sessionId, userEmail: user.email, protocol, browser, backend: null, status: 'CONNECTING', parser: new CommandLineParser(), cols, rows, startedAt: Date.now(), commandCount: 0, logWrites: [] };
     this.live.set(session.id, session);
     await this.audit.record({ userId: user.id, actorLabel: user.email, action: 'terminal.open', resourceType: 'terminal_session', resourceId: session.id, ipAddress, result: AuditResult.SUCCESS, metadata: { serverId: server.id, serverName: server.name, protocol } });
     this.sendJson(session, { type: 'status', sessionId: session.id, protocol, message: protocol === 'SSH' ? `SSH bağlantısı kuruluyor (${credential!.username}@${credential!.host ?? server.hostname ?? '?'}:${credential!.port})…` : 'Ajan üzerinden kabuk açılıyor…' });

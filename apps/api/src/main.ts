@@ -6,6 +6,12 @@ import { configureApp } from './app.setup';
 import { AppConfigService } from './config/config.service';
 import { API_PREFIX, APP_VERSION } from './version';
 
+// Güvenlik ağı: yakalanmayan Promise retleri süreci düşürmesin; günlüğe yazılır.
+process.on('unhandledRejection', (reason: unknown) => {
+  const message = reason instanceof Error ? reason.stack ?? reason.message : String(reason);
+  new Logger('TronMonitor').error(`Yakalanmayan Promise reddi: ${message}`);
+});
+
 async function bootstrap(): Promise<void> {
   // rawBody: ajan isteklerinin HMAC imzası ham gövde üzerinden doğrulanır.
   const app = await NestFactory.create(AppModule, { bufferLogs: true, rawBody: true });

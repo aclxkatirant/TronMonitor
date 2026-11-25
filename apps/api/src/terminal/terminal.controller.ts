@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser, RequirePermissions, clientIp } from '../auth/decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -64,6 +65,7 @@ export class TerminalController {
   }
 
   @Put('servers/:id/credential')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @RequirePermissions(PERMISSIONS.TERMINAL_CREDENTIALS)
   @ApiOperation({ summary: 'SSH kimlik bilgisini oluştur veya güncelle' })
   putCredential(@CurrentUser() user: AuthenticatedUser, @Param('id', uuid()) id: string, @Body() dto: UpsertCredentialDto, @Req() request: Request) {

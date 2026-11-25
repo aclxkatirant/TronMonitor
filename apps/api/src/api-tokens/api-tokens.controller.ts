@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import { CurrentUser, RequirePermissions, clientIp } from '../auth/decorators';
 import type { AuthenticatedUser } from '../auth/auth.types';
@@ -27,6 +28,7 @@ export class ApiTokensController {
   }
 
   @Post()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @RequirePermissions(PERMISSIONS.API_TOKENS_OWN)
   @ApiOperation({ summary: 'Belirteç oluştur; düz metin yalnızca bu yanıtta döner' })
   create(@CurrentUser() actor: AuthenticatedUser, @Body() dto: CreateApiTokenDto, @Req() request: Request) {

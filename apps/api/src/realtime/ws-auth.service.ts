@@ -8,6 +8,8 @@ import { SESSION_COOKIE_NAME } from '../auth/auth.types';
 
 export interface WsUser {
   id: string;
+  /** Bağlantıyı açan tarayıcı oturumu; iptal edilince soket kapatılır. */
+  sessionId: string;
   email: string;
   fullName: string;
   role: UserRole;
@@ -50,20 +52,32 @@ export class WsAuthService {
     const validated = token ? await this.sessions.validate(token) : null;
     if (!validated) return null;
     const permissions = await this.permissions.getEffectivePermissions(validated.user.id, validated.user.role);
-    return { id: validated.user.id, email: validated.user.email, fullName: validated.user.fullName, role: validated.user.role, permissions };
+    return { id: validated.user.id, sessionId: validated.session.id, email: validated.user.email, fullName: validated.user.fullName, role: validated.user.role, permissions };
   }
 }
 
 export function parseCookie(header: string, name: string): string | null {
   for (const part of header.split(';')) {
     const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
+    if (key === name) {
+      // Bozuk yüzde kodlaması URIError fırlatır; kimliksiz bir istemcinin süreci düşürmesine izin verilmez.
+      try {
+        return decodeURIComponent(rest.join('='));
+      } catch {
+        return null;
+      }
+    }
   }
   return null;
 }
 
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+/** HTTP tarafındaki `trust proxy: loopback` ile aynı politika: X-Forwarded-For yalnızca yerel ters vekilden kabul edilir. */
 export function remoteIp(request: IncomingMessage): string | null {
+  const direct = request.socket.remoteAddress || null;
+  if (!direct || !LOOPBACK.has(direct)) return direct;
   const forwarded = request.headers['x-forwarded-for'];
   const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
-  return first?.trim() || request.socket.remoteAddress || null;
+  return first?.trim() || direct;
 }

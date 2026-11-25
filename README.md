@@ -29,8 +29,9 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - Hizmet izleme ve yönetimi: ajan Windows hizmetlerini ve systemd birimlerini her 60 saniyede raporlar; hizmet listesi (arama, durum ve izleme filtreleri), izlemeye alınan hizmet durduğunda kritik olay açılır ve toparlanınca kapanır; yetkili kullanıcılar başlat/durdur/yeniden başlat komutu gönderir, komut heartbeat ile ajana iletilir, sonucu komut geçmişinde ve işlem kayıtlarında görünür
 - Web terminali: tarayıcıdan (xterm.js) kabuk erişimi; Linux sunuculara merkezden SSH ile (parola veya özel anahtar, şifreli saklanır, sunucu anahtarı ilk bağlantıda öğrenilir ve sonra doğrulanır), ajan kurulu sunuculara ajan üzerinden yerel kabuk (Windows'ta ConPTY ile PowerShell, Linux'ta PTY ile kabuk); yazılan komut satırları ve oturumlar (kim, hangi sunucu, ne zaman, nasıl kapandı) işlem kaydına yazılır; boşta kalma ve azami süre sınırları, kullanıcı başına eşzamanlı oturum sınırı, oturum sonlandırma
 - API belirteçleri: `tmk_` önekli kişisel belirteçler, kapsam (izin) seçimi, geçerlilik süresi, yalnızca oluşturulurken gösterilir ve karması saklanır; `Authorization: Bearer` ile REST API erişimi; iptal; yöneticiler tüm kullanıcıların belirteçlerini görebilir
+- Üretim kurulumu: Linux için tam otomatik kurulum/güncelleme/kaldırma/yedekleme/geri yükleme betikleri, sertleştirilmiş systemd birimleri ve Nginx HTTPS yapılandırması; Windows Server için Görev Zamanlayıcı tabanlı kurulum (ek hizmet yöneticisi gerekmez), yedekleme ve geri yükleme betikleri; üretimde güvenli çerez ve ortam doğrulaması
 
-Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır (ajan kabuğu dahil); SSH terminali gerçek bir Linux sunucusuna karşı değil, testlerdeki yerel SSH sunucusuna karşı doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
+Tüm yedi geliştirme aşaması tamamlanmıştır. Hangi ortamların gerçekten test edildiği [docs/uyumluluk.md](docs/uyumluluk.md) dosyasında listelenir: merkezi sunucu ve ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux kurulumları betiklerle hedeflenmiş ancak gerçek makinede sınanmamıştır.
 
 ## Desteklenecek işletim sistemleri
 
@@ -74,6 +75,20 @@ npm run dev:web                              # http://localhost:3000
 
 Ayrıntılı kurulum adımları ve test komutları için [docs/gelistirme.md](docs/gelistirme.md) dosyasına bakın.
 
+## Üretim kurulumu
+
+```bash
+# Linux (Ubuntu 22.04 / 24.04, Debian 12)
+sudo bash deploy/server/linux/install.sh --domain tron.kurum.com
+```
+
+```powershell
+# Windows Server (yönetici PowerShell; Node.js, PostgreSQL ve Memurai önceden kurulu)
+deploy\server\windows\install.ps1 -PublicUrl https://tron.kurum.com -PgAdminPassword '<postgres parolası>'
+```
+
+Adım adım kurulum için [docs/kurulum.md](docs/kurulum.md); güncelleme, yedekleme, geri yükleme ve sorun giderme için [docs/isletim.md](docs/isletim.md); güvenlik modeli ve inceleme sonuçları için [docs/guvenlik.md](docs/guvenlik.md).
+
 ## Testler
 
 ```bash
@@ -88,6 +103,8 @@ npm run typecheck && npm run lint && npm run build
 - Oturum çerezi `HttpOnly` ve `SameSite=Lax` olarak verilir; değiştirici isteklerde `X-Requested-With` başlığı zorunludur (CSRF koruması).
 - Tüm yetki denetimleri arka uçta yapılır; arayüz yalnızca görünürlüğü düzenler.
 - Kendi kendine kayıt varsayılan olarak kapalıdır; ilk hesap kurulum ekranından oluşturulur.
+- Ajan iletişimi HMAC imzalı ve yeniden oynatmaya karşı korumalıdır; sırlar AES-256-GCM ile şifrelenir ve hiçbir uç noktadan geri okunamaz.
+- Üretim öncesi savunma amaçlı kod incelemesi yapılmış, bulgular düzeltilmiştir; ayrıntılar ve işletmeci sorumlulukları [docs/guvenlik.md](docs/guvenlik.md) belgesindedir.
 
 ## Lisans
 

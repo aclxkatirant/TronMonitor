@@ -1,0 +1,7 @@
+[Unit]
+Description=TronMonitor yedekleme (backup.sh)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash /opt/tronmonitor/app/deploy/server/linux/backup.sh --keep 14

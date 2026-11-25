@@ -87,8 +87,16 @@ export class UsersService {
     return this.toSummary(user);
   }
 
+  /** Aktör, kendi etkin izin kümesinin dışında bir izni başkasına veremez (API belirteç kapsamlarıyla aynı kural). */
+  private assertPermissionsWithin(actor: AuthenticatedUser, permissions: string[] | undefined): void {
+    if (!permissions?.length) return;
+    const granted = new Set(actor.permissions);
+    if (permissions.some((p) => !granted.has(p))) throw AppError.forbidden('USER_PERMISSION_EXCEEDS');
+  }
+
   async create(actor: AuthenticatedUser, dto: CreateUserDto, ipAddress: string | null): Promise<UserSummary> {
     this.assertCanManageRole(actor, dto.role);
+    this.assertPermissionsWithin(actor, dto.permissions);
     const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
     if (existing) throw AppError.conflict('AUTH_EMAIL_IN_USE');
 
@@ -128,6 +136,7 @@ export class UsersService {
 
     this.assertCanManageRole(actor, target.role);
     if (dto.role !== undefined) this.assertCanManageRole(actor, dto.role);
+    this.assertPermissionsWithin(actor, dto.permissions);
 
     const demotingSuperAdmin =
       target.role === UserRole.SUPER_ADMIN &&

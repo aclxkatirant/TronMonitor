@@ -39,6 +39,8 @@ export function validateTarget(type: CheckType, target: string, port: number | n
     return null;
   }
   if (!/^[A-Za-z0-9.\-:[\]]+$/.test(target) || target.length > 253) return 'Hedef bir ana makine adı veya IP adresi olmalıdır.';
+  // "-" ile başlayan hedef ping'e seçenek olarak geçer (kabuk yok, ama argüman olarak yorumlanır).
+  if (target.startsWith('-')) return 'Hedef "-" ile başlayamaz.';
   if (type === CheckType.TCP && !port) return 'TCP kontrolü için port gereklidir.';
   return null;
 }

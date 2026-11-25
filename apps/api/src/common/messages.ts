@@ -61,6 +61,8 @@ export const MESSAGES = {
   TERMINAL_CREDENTIAL_NOT_FOUND: 'Bu sunucu için kayıtlı SSH kimlik bilgisi yok.',
   TERMINAL_KEY_INVALID: 'Özel anahtar çözümlenemedi: biçim desteklenmiyor veya parola yanlış.',
   TERMINAL_CREDENTIAL_INCOMPLETE: 'Parola ya da özel anahtar verilmelidir.',
+  AUTH_SESSION_REQUIRED: 'Bu işlem yalnızca tarayıcı oturumuyla yapılabilir; API belirteçleriyle kullanılamaz.',
+  USER_PERMISSION_EXCEEDS: 'Kullanıcıya kendi sahip olmadığınız bir izni veremezsiniz.',
 } as const;
 
 export type MessageCode = keyof typeof MESSAGES;

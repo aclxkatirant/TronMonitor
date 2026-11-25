@@ -3,12 +3,14 @@ import { OnGatewayConnection, OnGatewayDisconnect, OnGatewayInit, WebSocketGatew
 import type { IncomingMessage } from 'node:http';
 import type { WebSocket } from 'ws';
 import { PERMISSIONS } from '../permissions/permission-catalog';
+import { SessionService } from '../auth/session.service';
 import { RealtimeService, type RealtimeEvent } from './realtime.service';
-import { WsAuthService } from './ws-auth.service';
+import { WsAuthService, type WsUser } from './ws-auth.service';
 
 interface Client {
   socket: WebSocket;
   userId: string;
+  sessionId: string;
   alive: boolean;
 }
 
@@ -27,10 +29,14 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   constructor(
     private readonly realtime: RealtimeService,
     private readonly wsAuth: WsAuthService,
+    private readonly sessions: SessionService,
   ) {}
 
   afterInit(): void {
     this.realtime.events.subscribe((event) => this.broadcast(event));
+    // İptal edilen oturumların soketleri hemen kapatılır; olay akışı devam etmez.
+    this.sessions.revocations.on('session', (sessionId: string) => this.closeWhere((c) => c.sessionId === sessionId));
+    this.sessions.revocations.on('user', (userId: string, except?: string) => this.closeWhere((c) => c.userId === userId && c.sessionId !== except));
     this.pingTimer = setInterval(() => {
       for (const [socket, client] of this.clients) {
         if (!client.alive) {
@@ -50,7 +56,13 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       socket.close(4003, 'origin not allowed');
       return;
     }
-    const user = await this.wsAuth.authenticate(request);
+    let user: WsUser | null = null;
+    try {
+      user = await this.wsAuth.authenticate(request);
+    } catch (error) {
+      // Nest, handleConnection'ın Promise'ini beklemez; yakalanmayan ret süreci düşürür.
+      this.logger.warn(`WebSocket kimlik doğrulaması başarısız: ${error instanceof Error ? error.message : String(error)}`);
+    }
     if (!user) {
       socket.close(4001, 'unauthorized');
       return;
@@ -59,7 +71,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       socket.close(4003, 'forbidden');
       return;
     }
-    const client: Client = { socket, userId: user.id, alive: true };
+    const client: Client = { socket, userId: user.id, sessionId: user.sessionId, alive: true };
     this.clients.set(socket, client);
     socket.on('pong', () => {
       client.alive = true;
@@ -75,6 +87,15 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 
   get clientCount(): number {
     return this.clients.size;
+  }
+
+  private closeWhere(predicate: (client: Client) => boolean): void {
+    for (const [socket, client] of this.clients) {
+      if (predicate(client)) {
+        this.clients.delete(socket);
+        socket.close(4001, 'session revoked');
+      }
+    }
   }
 
   private broadcast(event: RealtimeEvent): void {
