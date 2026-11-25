@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,7 +61,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	a.lastHost = sysinfo.Collect(ctx)
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		a.heartbeatLoop(ctx)
@@ -71,9 +74,58 @@ func (a *Agent) Run(ctx context.Context) error {
 		defer wg.Done()
 		a.servicesLoop(ctx)
 	}()
+	go func() {
+		defer wg.Done()
+		a.commandsLoop(ctx)
+	}()
 	wg.Wait()
 	a.log.Info("ajan durduruldu")
 	return nil
+}
+
+// commandsLoop merkezdeki komutları uzun yoklama ile anında alır; heartbeat aralığını beklemez.
+// Sunucuya ulaşılamazsa üstel geri çekilme uygulanır (heartbeat ile aynı sayaç).
+func (a *Agent) commandsLoop(ctx context.Context) {
+	// Heartbeat'in önce gitmesi için kısa gecikme.
+	select {
+	case <-ctx.Done():
+		return
+	case <-time.After(2 * time.Second):
+	}
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+		if a.isRevoked() {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(revokedRetry):
+			}
+			continue
+		}
+		callCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+		cmds, err := a.client.WaitCommands(callCtx)
+		cancel()
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			a.mu.Lock()
+			wait := a.backoff
+			a.mu.Unlock()
+			a.log.Debug("komut yoklaması başarısız; yeniden denenecek", "error", err, "wait", wait)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(jitter(wait)):
+			}
+			continue
+		}
+		for _, cmd := range cmds {
+			a.executeCommand(ctx, cmd)
+		}
+	}
 }
 
 func (a *Agent) heartbeatLoop(ctx context.Context) {
@@ -215,6 +267,22 @@ func (a *Agent) executeCommand(ctx context.Context, cmd api.AgentCommand) {
 			result.OK = true
 			result.Message = fmt.Sprintf("%s: %s tamamlandı", name, action)
 		}
+	case "terminal.open":
+		sessionID := cmd.Payload["sessionId"]
+		cols, _ := strconv.Atoi(cmd.Payload["cols"])
+		rows, _ := strconv.Atoi(cmd.Payload["rows"])
+		switch {
+		case a.cfg.DisableTerminal:
+			result.Message = errTerminalDisabled.Error()
+			a.log.Warn("terminal isteği reddedildi: yapılandırmada kapalı", "id", cmd.ID)
+		case !uuidRe.MatchString(sessionID):
+			result.Message = "geçersiz oturum kimliği"
+		default:
+			result.OK = true
+			result.Message = "terminal bağlantısı kuruluyor"
+			a.log.Info("terminal isteği alındı", "id", cmd.ID, "session", sessionID)
+			go a.runTerminal(ctx, sessionID, cols, rows)
+		}
 	default:
 		result.Message = "desteklenmeyen komut türü: " + cmd.Type
 		a.log.Warn("bilinmeyen komut yok sayıldı", "id", cmd.ID, "type", cmd.Type)
@@ -224,11 +292,13 @@ func (a *Agent) executeCommand(ctx context.Context, cmd api.AgentCommand) {
 	if err := a.client.ReportCommandResult(callCtx, cmd.ID, result); err != nil {
 		a.log.Warn("komut sonucu bildirilemedi", "id", cmd.ID, "error", err)
 	}
-	if result.OK {
+	if result.OK && strings.HasPrefix(cmd.Type, "service.") {
 		// Hizmet durumu değişti; listeyi hemen yenile.
 		a.reportServices(ctx)
 	}
 }
+
+var uuidRe = regexp.MustCompile(`^[0-9a-fA-F-]{36}$`)
 
 func (a *Agent) enqueue(sample api.MetricSample) {
 	a.mu.Lock()

@@ -27,9 +27,10 @@ TronMonitor; Windows Server ve Linux sunucularınızı tek bir web panosundan iz
 - Olay yönetimi: ajan kopması, kontrol kesintisi, kaynak eşiği aşımı ve SSL bitişi için otomatik olay açma ve çözme; üstlenme, not ekleme, elle çözme; zaman çizelgesi ve bildirim geçmişi
 - Bildirimler: Discord webhook, Telegram bot ve SMTP e-posta kanalları; olay türüne göre seçim, test gönderimi, şifreli ve maskelenmiş yapılandırma, kuyruklu ve yeniden denemeli teslim
 - Hizmet izleme ve yönetimi: ajan Windows hizmetlerini ve systemd birimlerini her 60 saniyede raporlar; hizmet listesi (arama, durum ve izleme filtreleri), izlemeye alınan hizmet durduğunda kritik olay açılır ve toparlanınca kapanır; yetkili kullanıcılar başlat/durdur/yeniden başlat komutu gönderir, komut heartbeat ile ajana iletilir, sonucu komut geçmişinde ve işlem kayıtlarında görünür
+- Web terminali: tarayıcıdan (xterm.js) kabuk erişimi; Linux sunuculara merkezden SSH ile (parola veya özel anahtar, şifreli saklanır, sunucu anahtarı ilk bağlantıda öğrenilir ve sonra doğrulanır), ajan kurulu sunuculara ajan üzerinden yerel kabuk (Windows'ta ConPTY ile PowerShell, Linux'ta PTY ile kabuk); yazılan komut satırları ve oturumlar (kim, hangi sunucu, ne zaman, nasıl kapandı) işlem kaydına yazılır; boşta kalma ve azami süre sınırları, kullanıcı başına eşzamanlı oturum sınırı, oturum sonlandırma
 - API belirteçleri: `tmk_` önekli kişisel belirteçler, kapsam (izin) seçimi, geçerlilik süresi, yalnızca oluşturulurken gösterilir ve karması saklanır; `Authorization: Bearer` ile REST API erişimi; iptal; yöneticiler tüm kullanıcıların belirteçlerini görebilir
 
-Web terminali **henüz uygulanmamıştır**; arayüzde bu modül "henüz etkin değil" durumuyla gösterilir. Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
+Ajan şu ana kadar yalnızca Windows 11 Pro üzerinde doğrulanmıştır (ajan kabuğu dahil); SSH terminali gerçek bir Linux sunucusuna karşı değil, testlerdeki yerel SSH sunucusuna karşı doğrulanmıştır; Windows Server ve Linux uyumluluk durumu için [docs/ajan/README.md](docs/ajan/README.md) dosyasına bakın.
 
 ## Desteklenecek işletim sistemleri
 

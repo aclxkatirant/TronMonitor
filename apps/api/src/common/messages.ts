@@ -50,6 +50,17 @@ export const MESSAGES = {
   AGENT_TIMESTAMP_SKEW: 'İstek zaman damgası kabul edilen aralığın dışında. Sunucu saatini denetleyin.',
   AGENT_REPLAY_DETECTED: 'Bu istek daha önce işlenmiş (yeniden oynatma koruması).',
   AGENT_CREDENTIAL_REVOKED: 'Bu ajanın kimlik bilgisi iptal edilmiş. Sunucuyu yeniden kaydedin.',
+  TERMINAL_SESSION_NOT_FOUND: 'Terminal oturumu bulunamadı.',
+  TERMINAL_SESSION_NOT_ACTIVE: 'Terminal oturumu artık etkin değil.',
+  TERMINAL_NO_METHOD: 'Bu sunucu için terminal yöntemi yok: SSH kimlik bilgisi tanımlayın veya ajanın bağlı olduğundan emin olun.',
+  TERMINAL_LIMIT_REACHED: 'Aynı anda en fazla 3 terminal oturumu açabilirsiniz.',
+  TERMINAL_AGENT_TIMEOUT: 'Ajan terminal bağlantısını zamanında kurmadı.',
+  TERMINAL_AGENT_REJECTED: 'Ajan terminal isteğini reddetti (ajan yapılandırmasında terminal kapalı olabilir).',
+  TERMINAL_SSH_FAILED: 'SSH bağlantısı kurulamadı.',
+  TERMINAL_HOST_KEY_MISMATCH: 'Sunucunun SSH anahtarı kayıtlı parmak izinden farklı; olası sahte sunucu. Emin değilseniz kimlik bilgisini yeniden kaydetmeyin.',
+  TERMINAL_CREDENTIAL_NOT_FOUND: 'Bu sunucu için kayıtlı SSH kimlik bilgisi yok.',
+  TERMINAL_KEY_INVALID: 'Özel anahtar çözümlenemedi: biçim desteklenmiyor veya parola yanlış.',
+  TERMINAL_CREDENTIAL_INCOMPLETE: 'Parola ya da özel anahtar verilmelidir.',
 } as const;
 
 export type MessageCode = keyof typeof MESSAGES;

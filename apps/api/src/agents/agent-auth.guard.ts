@@ -25,8 +25,17 @@ export interface AgentRequest extends Request {
   rawBody?: Buffer;
 }
 
+export interface AgentAuthInput {
+  method: string;
+  /** Yol + sorgu dizesi (imzaya dahil). */
+  requestUri: string;
+  header: (name: string) => string | undefined;
+  rawBody: Buffer;
+}
+
 /**
  * Ajan isteklerini HMAC imzası, zaman damgası ve tek kullanımlık nonce ile doğrular (yeniden oynatma koruması).
+ * `authenticate` hem HTTP guard'ı hem de ajan WebSocket el sıkışması tarafından kullanılır.
  */
 @Injectable()
 export class AgentAuthGuard implements CanActivate {
@@ -40,10 +49,20 @@ export class AgentAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AgentRequest>();
-    const keyId = request.header(AGENT_HEADERS.KEY) ?? '';
-    const timestamp = request.header(AGENT_HEADERS.TIMESTAMP) ?? '';
-    const nonce = request.header(AGENT_HEADERS.NONCE) ?? '';
-    const signature = request.header(AGENT_HEADERS.SIGNATURE) ?? '';
+    request.agent = await this.authenticate({
+      method: request.method,
+      requestUri: request.originalUrl,
+      header: (name) => request.header(name),
+      rawBody: request.rawBody ?? Buffer.alloc(0),
+    });
+    return true;
+  }
+
+  async authenticate(input: AgentAuthInput): Promise<AuthenticatedAgent> {
+    const keyId = input.header(AGENT_HEADERS.KEY) ?? '';
+    const timestamp = input.header(AGENT_HEADERS.TIMESTAMP) ?? '';
+    const nonce = input.header(AGENT_HEADERS.NONCE) ?? '';
+    const signature = input.header(AGENT_HEADERS.SIGNATURE) ?? '';
 
     if (!keyId || !timestamp || !nonce || !signature) throw AppError.unauthorized('AGENT_AUTH_REQUIRED');
     if (!/^tma_[0-9a-f]{32}$/.test(keyId)) throw AppError.unauthorized('AGENT_AUTH_INVALID');
@@ -70,17 +89,7 @@ export class AgentAuthGuard implements CanActivate {
       throw AppError.unauthorized('AGENT_AUTH_INVALID');
     }
 
-    const valid = verifySignature(
-      secret,
-      {
-        method: request.method,
-        requestUri: request.originalUrl,
-        timestamp,
-        nonce,
-        body: request.rawBody ?? Buffer.alloc(0),
-      },
-      signature,
-    );
+    const valid = verifySignature(secret, { method: input.method, requestUri: input.requestUri, timestamp, nonce, body: input.rawBody }, signature);
     if (!valid) throw AppError.unauthorized('AGENT_AUTH_INVALID');
 
     // Nonce yalnızca bir kez kabul edilir; aynı imzalı istek tekrar gönderilirse reddedilir.
@@ -88,12 +97,6 @@ export class AgentAuthGuard implements CanActivate {
     const stored = await this.redis.client.set(nonceKey, '1', 'EX', AGENT_NONCE_TTL_SECONDS, 'NX');
     if (stored !== 'OK') throw AppError.unauthorized('AGENT_REPLAY_DETECTED');
 
-    request.agent = {
-      agentId: credential.agent.id,
-      serverId: credential.agent.serverId,
-      credentialId: credential.id,
-      keyId,
-    };
-    return true;
+    return { agentId: credential.agent.id, serverId: credential.agent.serverId, credentialId: credential.id, keyId };
   }
 }

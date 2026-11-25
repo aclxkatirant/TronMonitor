@@ -31,7 +31,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/erisilebilirlik', label: 'Erişilebilirlik', icon: Activity, permission: 'uptime.read' },
   { href: '/olaylar', label: 'Olaylar', icon: TriangleAlert, permission: 'incidents.read' },
   { href: '/hizmetler', label: 'Hizmetler', icon: Boxes, permission: 'services.read' },
-  { href: '/terminal', label: 'Terminal', icon: TerminalSquare, permission: 'terminal.use', pending: true },
+  { href: '/terminal', label: 'Terminal', icon: TerminalSquare, permission: 'terminal.use' },
   { href: '/bildirimler', label: 'Bildirimler', icon: Bell, permission: 'notifications.read' },
   { href: '/islem-kayitlari', label: 'İşlem Kayıtları', icon: ClipboardList, permission: 'audit.read' },
   { href: '/api-yonetimi', label: 'API Yönetimi', icon: KeyRound, permission: 'apitokens.own' },
@@ -39,9 +39,5 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/ayarlar', label: 'Ayarlar', icon: Settings, permission: 'settings.read' },
 ];
 
-export const PENDING_MODULES: Record<string, { title: string; description: string }> = {
-  terminal: {
-    title: 'Terminal',
-    description: 'Güvenli SSH ve PowerShell web terminali bu modülde yer alacak.',
-  },
-};
+/** Henüz etkin olmayan modüller; tüm modüller uygulandığı için boş. */
+export const PENDING_MODULES: Record<string, { title: string; description: string }> = {};

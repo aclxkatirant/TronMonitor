@@ -99,3 +99,9 @@ export function daysUntil(value: string | Date | null | undefined, now: Date = n
   if (Number.isNaN(date.getTime())) return null;
   return Math.floor((date.getTime() - now.getTime()) / 86_400_000);
 }
+
+/** İki zaman arasındaki saniye (bitiş yoksa şimdiye kadar). */
+export function elapsedSeconds(from: string | Date, to?: string | Date | null): number {
+  const end = to ? new Date(to).getTime() : Date.now();
+  return Math.max(0, Math.round((end - new Date(from).getTime()) / 1000));
+}

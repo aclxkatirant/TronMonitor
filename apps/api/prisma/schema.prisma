@@ -660,6 +660,7 @@ model Notification {
 enum TerminalProtocol {
   SSH
   WINRM
+  AGENT
 }
 
 enum CredentialType {
@@ -675,6 +676,7 @@ model ServerCredential {
   type            CredentialType
   username        String
   port            Int
+  host            String?
   encryptedSecret String
   hostFingerprint String?
   createdAt       DateTime       @default(now())

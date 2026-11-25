@@ -270,32 +270,68 @@ func (c *Client) SendMetrics(ctx context.Context, batch MetricsBatch) (*MetricsR
 }
 
 func (c *Client) do(ctx context.Context, path string, body any, out any, signed bool) error {
-	payload, err := json.Marshal(body)
+	return c.doMethod(ctx, http.MethodPost, path, body, out, signed)
+}
+
+// SignedHeaders verilen istek için imza başlıklarını üretir (WebSocket el sıkışması gibi
+// http.Client dışındaki istekler için). requestURI yol + sorgu dizesidir, ör. "/api/v1/agents/terminal?session=…".
+func (c *Client) SignedHeaders(method, requestURI string, body []byte) (http.Header, error) {
+	if c.keyID == "" || c.secret == "" {
+		return nil, errors.New("ajan kimlik bilgileri ayarlanmamış")
+	}
+	nonce, err := NewNonce()
 	if err != nil {
-		return fmt.Errorf("istek gövdesi oluşturulamadı: %w", err)
+		return nil, err
+	}
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	h := http.Header{}
+	h.Set("User-Agent", "TronMonitor-Agent/"+buildinfo.Version)
+	h.Set(HeaderKey, c.keyID)
+	h.Set(HeaderTimestamp, timestamp)
+	h.Set(HeaderNonce, nonce)
+	h.Set(HeaderSignature, Sign(c.secret, method, requestURI, timestamp, nonce, body))
+	return h, nil
+}
+
+// BaseURL yapılandırılmış sunucu adresini (sonda / olmadan) döndürür.
+func (c *Client) BaseURL() string { return c.baseURL }
+
+// TLSConfig HTTP istemcisinin TLS ayarlarını döndürür (WebSocket için aynı CA güveni).
+func (c *Client) TLSConfig() *tls.Config {
+	if t, ok := c.http.Transport.(*http.Transport); ok {
+		return t.TLSClientConfig
+	}
+	return nil
+}
+
+func (c *Client) doMethod(ctx context.Context, method, path string, body any, out any, signed bool) error {
+	var payload []byte
+	if body != nil {
+		var err error
+		payload, err = json.Marshal(body)
+		if err != nil {
+			return fmt.Errorf("istek gövdesi oluşturulamadı: %w", err)
+		}
 	}
 	requestURI := apiPrefix + path
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+requestURI, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+requestURI, bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "TronMonitor-Agent/"+buildinfo.Version)
 
 	if signed {
-		if c.keyID == "" || c.secret == "" {
-			return errors.New("ajan kimlik bilgileri ayarlanmamış")
-		}
-		nonce, err := NewNonce()
+		headers, err := c.SignedHeaders(method, requestURI, payload)
 		if err != nil {
 			return err
 		}
-		timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-		req.Header.Set(HeaderKey, c.keyID)
-		req.Header.Set(HeaderTimestamp, timestamp)
-		req.Header.Set(HeaderNonce, nonce)
-		req.Header.Set(HeaderSignature, Sign(c.secret, http.MethodPost, requestURI, timestamp, nonce, payload))
+		for k, v := range headers {
+			req.Header[k] = v
+		}
 	}
 
 	resp, err := c.http.Do(req)

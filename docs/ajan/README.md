@@ -66,7 +66,9 @@ Yapılandırma dosyası ajanın gizli anahtarını içerir ve 0600 izinle yazıl
 - **Kesinti dayanıklılığı**: merkez ulaşılamazsa örnekler bellekte tamponlanır (en fazla 240 örnek, yaklaşık 1 saat); bağlantı dönünce toplu gönderilir. Yeniden denemeler 5 saniyeden 5 dakikaya kadar üstel geri çekilmeyle yapılır.
 - Merkez, 90 saniye boyunca heartbeat almadığı sunucuyu **çevrimdışı** olarak işaretler ve bağlantı geçmişine kaydeder.
 - **Hizmetler**: başlangıçtan 5 saniye sonra ve ardından her 60 saniyede bir Windows hizmetleri (SCM) veya systemd birimleri (`systemctl list-units` / `list-unit-files`) ad, görünen ad, durum ve başlangıç türüyle raporlanır.
-- **Komutlar**: heartbeat yanıtında gelen `service.start`, `service.stop`, `service.restart` komutları (yalnızca bu üçü) en fazla 2 dakika içinde uygulanır; sonuç merkeze bildirilir ve hizmet listesi hemen yeniden raporlanır. Hizmet adı yol ayırıcısı veya denetim karakteri içeriyorsa komut reddedilir; Linux'ta `systemctl <eylem> -- <ad>` biçiminde, kabuk kullanılmadan çalıştırılır.
+- **Komutlar**: ajan `GET /agents/commands/wait` uzun yoklamasını sürekli açık tutar; komutlar anında gelir (heartbeat yanıtı yedek yoldur). `service.start`, `service.stop`, `service.restart` komutları (ve aşağıdaki `terminal.open`; başka tür yoktur) en fazla 2 dakika içinde uygulanır; sonuç merkeze bildirilir ve hizmet listesi hemen yeniden raporlanır. Hizmet adı yol ayırıcısı veya denetim karakteri içeriyorsa komut reddedilir; Linux'ta `systemctl <eylem> -- <ad>` biçiminde, kabuk kullanılmadan çalıştırılır.
+
+- **Web terminali** (`terminal.open`): ajan merkeze dışa doğru imzalı bir WebSocket açar ve yerel bir kabuk başlatır: Windows'ta ConPTY ile `powershell.exe -NoLogo -NoProfile` (Windows Server 2019 / Windows 10 1809 ve üzeri gerekir), Linux'ta PTY ile `$SHELL -l`. Kabuk **ajanın hesabıyla** çalışır (Windows'ta varsayılan `LocalSystem`). En fazla 5 eşzamanlı terminal. Yapılandırmada `"disableTerminal": true` ile bu özellik kapatılabilir; o zaman istek reddedilir ve panoda nedeni görünür.
 
 ## Yetkiler
 

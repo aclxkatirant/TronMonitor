@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { EventEmitter } from 'node:events';
+import type Redis from 'ioredis';
 import { AuditResult, CommandStatus, IncidentSeverity, IncidentType, Prisma, ServiceState, type AgentCommand, type MonitoredService } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { AuditService } from '../audit/audit.service';
 import { AppError } from '../common/app-error';
 import { RealtimeService } from '../realtime/realtime.service';
@@ -23,16 +26,37 @@ export const SERVICE_STATE_LABELS: Record<ServiceState, string> = {
 
 const ACTION_LABELS: Record<ServiceAction, string> = { start: 'başlatma', stop: 'durdurma', restart: 'yeniden başlatma' };
 
+/** Yeni komut yayınlanan Redis kanalı; mesaj gövdesi ajan kimliğidir. Çok süreçli kurulumda da çalışır. */
+const COMMAND_CHANNEL = 'agent:commands';
+
 @Injectable()
-export class ServicesService {
+export class ServicesService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ServicesService.name);
+  private readonly signals = new EventEmitter();
+  /** Komut sonuçları için süreç içi olay ('result', command, ok, message); terminal servisi dinler. */
+  readonly commandResults = new EventEmitter();
+  private subscriber?: Redis;
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly audit: AuditService,
     private readonly realtime: RealtimeService,
     private readonly incidents: IncidentsService,
-  ) {}
+  ) {
+    this.signals.setMaxListeners(0);
+  }
+
+  async onModuleInit(): Promise<void> {
+    this.subscriber = this.redis.client.duplicate();
+    this.subscriber.on('error', (error: Error) => this.logger.warn(`Komut kanalı Redis hatası: ${error.message}`));
+    await this.subscriber.subscribe(COMMAND_CHANNEL);
+    this.subscriber.on('message', (_channel: string, agentId: string) => this.signals.emit(agentId));
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.subscriber?.quit().catch(() => undefined);
+  }
 
   // ---------------------------------------------------------------------------
   // Ajan raporu
@@ -175,18 +199,41 @@ export class ServicesService {
     const pending = await this.prisma.agentCommand.count({ where: { agentId: agent.id, status: { in: [CommandStatus.PENDING, CommandStatus.SENT] }, payload: { path: ['serviceName'], equals: service.name } } });
     if (pending > 0) throw AppError.conflict('COMMAND_ALREADY_PENDING');
 
-    const command = await this.prisma.agentCommand.create({
-      data: {
-        agentId: agent.id,
-        type: `service.${action}`,
-        payload: { serviceName: service.name, serviceId: service.id },
-        requestedById: actor.id,
-        expiresAt: new Date(Date.now() + COMMAND_TTL_MS),
-      },
-    });
+    const command = await this.enqueueCommand(agent.id, `service.${action}`, { serviceName: service.name, serviceId: service.id }, actor.id);
     await this.audit.record({ userId: actor.id, actorLabel: actor.email, action: `service.${action}`, resourceType: 'service', resourceId: serviceId, ipAddress, result: AuditResult.SUCCESS, metadata: { serverId, serverName: service.server.name, name: service.name, commandId: command.id } });
     this.logger.log(`Hizmet ${ACTION_LABELS[action]} komutu kuyruğa alındı: ${service.name} @ ${service.server.name} (${actor.email})`);
     return this.toCommandView(command);
+  }
+
+  /**
+   * Ajana komut kuyruklar ve bekleyen uzun yoklama isteğini uyandırır. Komut, ajan onu alana kadar
+   * PENDING kalır; ajan uzun yoklama ya da heartbeat ile alır.
+   */
+  async enqueueCommand(agentId: string, type: string, payload: Record<string, string | number>, requestedById: string | null, ttlMs = COMMAND_TTL_MS): Promise<AgentCommand> {
+    const command = await this.prisma.agentCommand.create({
+      data: { agentId, type, payload, requestedById, expiresAt: new Date(Date.now() + ttlMs) },
+    });
+    await this.redis.client.publish(COMMAND_CHANNEL, agentId).catch((error: Error) => this.logger.warn(`Komut sinyali yayınlanamadı: ${error.message}`));
+    return command;
+  }
+
+  /**
+   * Uzun yoklama: bekleyen komut varsa hemen, yoksa yeni komut sinyaline veya zaman aşımına kadar bekler.
+   * Böylece komutlar heartbeat aralığını beklemeden ajana ulaşır.
+   */
+  async waitForCommands(agentId: string, timeoutMs: number): Promise<{ id: string; type: string; payload: Record<string, string> }[]> {
+    const immediate = await this.takePendingCommands(agentId);
+    if (immediate.length > 0) return immediate;
+    await new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        this.signals.off(agentId, done);
+        resolve();
+      };
+      const timer = setTimeout(done, timeoutMs);
+      this.signals.on(agentId, done);
+    });
+    return this.takePendingCommands(agentId);
   }
 
   /** Heartbeat yanıtına eklenecek bekleyen komutlar; gönderildi olarak işaretlenir. */
@@ -207,8 +254,9 @@ export class ServicesService {
       where: { id: commandId },
       data: { status: dto.ok ? CommandStatus.SUCCEEDED : CommandStatus.FAILED, result: dto.message?.slice(0, 2000) ?? null, completedAt: new Date() },
     });
-    await this.audit.record({ userId: command.requestedById, actorLabel: `agent:${agent.keyId.slice(0, 12)}`, action: 'service.command_result', resourceType: 'agent_command', resourceId: commandId, result: dto.ok ? AuditResult.SUCCESS : AuditResult.FAILURE, metadata: { type: command.type, message: dto.message } });
-    this.realtime.emit('services.updated', { serverId: agent.serverId, commandId, ok: dto.ok });
+    await this.audit.record({ userId: command.requestedById, actorLabel: `agent:${agent.keyId.slice(0, 12)}`, action: command.type.startsWith('terminal.') ? 'terminal.command_result' : 'service.command_result', resourceType: 'agent_command', resourceId: commandId, result: dto.ok ? AuditResult.SUCCESS : AuditResult.FAILURE, metadata: { type: command.type, message: dto.message } });
+    this.commandResults.emit('result', command, dto.ok, dto.message);
+    if (command.type.startsWith('service.')) this.realtime.emit('services.updated', { serverId: agent.serverId, commandId, ok: dto.ok });
   }
 
   async listCommands(query: ListCommandsQueryDto) {

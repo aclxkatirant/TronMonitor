@@ -25,6 +25,8 @@ type Config struct {
 	CAFile                string `json:"caFile,omitempty"`
 	AllowHTTP             bool   `json:"allowHttp,omitempty"`
 	LogLevel              string `json:"logLevel,omitempty"`
+	// DisableTerminal true ise merkezden gelen web terminali istekleri reddedilir.
+	DisableTerminal bool `json:"disableTerminal,omitempty"`
 }
 
 // ErrNotRegistered yapılandırma dosyası bulunmadığında döner.

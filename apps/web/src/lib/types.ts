@@ -428,3 +428,56 @@ export interface ApiTokenItem {
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
   owner?: { id: string; fullName: string; email: string };
 }
+
+// ---------------------------------------------------------------------------
+// Terminal
+// ---------------------------------------------------------------------------
+
+export type TerminalProtocol = 'SSH' | 'WINRM' | 'AGENT';
+export type TerminalSessionStatus = 'CONNECTING' | 'ACTIVE' | 'CLOSED' | 'FAILED' | 'TIMED_OUT' | 'TERMINATED';
+export type SshCredentialType = 'SSH_PASSWORD' | 'SSH_KEY';
+
+export const TERMINAL_PROTOCOL_LABELS: Record<TerminalProtocol, string> = { SSH: 'SSH', WINRM: 'WinRM', AGENT: 'Ajan kabuğu' };
+
+export interface ServerCredentialView {
+  type: SshCredentialType;
+  username: string;
+  host: string | null;
+  port: number;
+  hostFingerprint: string | null;
+  updatedAt: string;
+}
+
+export interface TerminalServerItem {
+  id: string;
+  name: string;
+  hostname: string | null;
+  osFamily: OsFamily;
+  status: ServerStatus;
+  agentConnected: boolean;
+  credential: ServerCredentialView | null;
+  methods: ('SSH' | 'AGENT')[];
+  activeSessions: number;
+}
+
+export interface TerminalSessionItem {
+  id: string;
+  server: { id: string; name: string };
+  user: { id: string; fullName: string; email: string };
+  protocol: TerminalProtocol;
+  protocolLabel: string;
+  status: TerminalSessionStatus;
+  statusLabel: string;
+  clientIp: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  endReason: string | null;
+  commandCount: number;
+  isLive: boolean;
+}
+
+export interface TerminalCommandItem {
+  id: string;
+  command: string;
+  executedAt: string;
+}

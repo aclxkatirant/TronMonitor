@@ -3,6 +3,9 @@ module github.com/aclxkatirant/TronMonitor/agent
 go 1.27.4
 
 require (
+	github.com/UserExistsError/conpty v0.1.4
+	github.com/creack/pty v1.1.24
+	github.com/gorilla/websocket v1.5.3
 	github.com/kardianos/service v1.3.0
 	github.com/shirou/gopsutil/v4 v4.26.10
 	golang.org/x/sys v0.50.0

@@ -24,6 +24,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { UptimeModule } from './uptime/uptime.module';
 import { ServicesModule } from './services/services.module';
+import { TerminalModule } from './terminal/terminal.module';
 import { ApiTokensModule } from './api-tokens/api-tokens.module';
 import { HealthController } from './health/health.controller';
 import { GlobalExceptionFilter } from './common/http-exception.filter';
@@ -60,6 +61,7 @@ import { GlobalExceptionFilter } from './common/http-exception.filter';
     NotificationsModule,
     IncidentsModule,
     ServicesModule,
+    TerminalModule,
     RegistrationModule,
     AgentsModule,
     ServersModule,

@@ -26,6 +26,14 @@ export class AgentServicesController {
 
   @Public()
   @UseGuards(AgentAuthGuard)
+  @Get('commands/wait')
+  @ApiOperation({ summary: 'Komut uzun yoklaması: bekleyen komut yoksa en fazla 25 sn bekler (HMAC imzalı)' })
+  wait(@Req() request: AgentRequest) {
+    return this.services.waitForCommands(request.agent!.agentId, 25_000);
+  }
+
+  @Public()
+  @UseGuards(AgentAuthGuard)
   @Post('commands/:id/result')
   @HttpCode(204)
   @ApiOperation({ summary: 'Komut sonucu bildirimi (HMAC imzalı)' })
