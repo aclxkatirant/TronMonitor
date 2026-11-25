@@ -2,6 +2,12 @@
 
 Biçim [Keep a Changelog](https://keepachangelog.com/tr/1.1.0/) ilkelerine, sürümleme [Semantic Versioning](https://semver.org/lang/tr/) kurallarına uyar.
 
+## [Unreleased]
+
+### Düzeltildi
+
+- Windows'ta derlenen `SHA256SUMS` dosyası CRLF satır sonlu yazılıyordu; Linux kurulum betiği özeti bulamıyordu. Derleme betiği artık LF yazar, Linux kurulum betiği CRLF'ye de tolerans gösterir.
+
 ## [1.0.0] - 2026-11-25
 
 İlk kararlı sürüm. Yedi geliştirme aşamasının tamamını kapsar.

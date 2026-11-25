@@ -62,6 +62,7 @@ log "İşletim sistemi: $(. /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-
 log "Ajan indiriliyor: ${SERVER}/api/v1/agent-downloads/${BINARY}"
 fetch "${SERVER}/api/v1/agent-downloads/${BINARY}" "${TMP}/${BINARY}"
 fetch "${SERVER}/api/v1/agent-downloads/SHA256SUMS" "${TMP}/SHA256SUMS"
+sed -i 's/\r$//' "${TMP}/SHA256SUMS"   # Windows'ta üretilmiş CRLF dosyalara tolerans
 
 log "Bütünlük doğrulanıyor (SHA-256)"
 EXPECTED="$(grep -E "[[:space:]]\*?${BINARY}\$" "${TMP}/SHA256SUMS" | awk '{print $1}' | head -n1)"

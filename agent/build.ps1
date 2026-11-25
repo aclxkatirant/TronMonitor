@@ -23,7 +23,9 @@ $targets = @(
 )
 
 New-Item -ItemType Directory -Force $OutDir | Out-Null
-Remove-Item "$OutDir\SHA256SUMS" -ErrorAction SilentlyContinue
+# Özet dosyası her platformda LF satır sonlu yazılır; Linux kurulum betiği CRLF ile satır sonunu eşleyemez.
+$sums = Join-Path (Resolve-Path $OutDir).Path "SHA256SUMS"
+Remove-Item $sums -ErrorAction SilentlyContinue
 
 foreach ($t in $targets) {
   $env:GOOS = $t.os; $env:GOARCH = $t.arch; $env:CGO_ENABLED = "0"
@@ -32,8 +34,8 @@ foreach ($t in $targets) {
   go build -trimpath -ldflags $ldflags -o $out ./cmd/tronmonitor-agent
   if ($LASTEXITCODE -ne 0) { throw "Derleme başarısız: $($t.os)/$($t.arch)" }
   $hash = (Get-FileHash $out -Algorithm SHA256).Hash.ToLower()
-  Add-Content -Path "$OutDir\SHA256SUMS" -Value "$hash  $($t.name)" -Encoding ascii
+  [IO.File]::AppendAllText($sums, "$hash  $($t.name)`n", [Text.Encoding]::ASCII)
 }
 Remove-Item Env:GOOS, Env:GOARCH, Env:CGO_ENABLED -ErrorAction SilentlyContinue
-Write-Host "Tamamlandı. Özetler: $OutDir\SHA256SUMS"
-Get-Content "$OutDir\SHA256SUMS"
+Write-Host "Tamamlandı. Özetler: $sums"
+Get-Content $sums
