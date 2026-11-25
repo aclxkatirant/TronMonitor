@@ -81,8 +81,8 @@ Yapılandırma dosyası ajanın gizli anahtarını içerir ve 0600 izinle yazıl
 
 ```bash
 cd agent
-./build.sh 0.2.0        # Linux/macOS
-.\build.ps1 -Version 0.2.0   # Windows
+./build.sh 1.0.0        # Linux/macOS
+.\build.ps1 -Version 1.0.0   # Windows
 ```
 
 Çıktılar `agent/dist/` altına yazılır; `CGO_ENABLED=0` ile statik derlenir.

@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-VERSION="${1:-0.1.0}"
+VERSION="${1:-1.0.0}"
 OUT_DIR="${OUT_DIR:-dist}"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"

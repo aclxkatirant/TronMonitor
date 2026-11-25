@@ -1,7 +1,7 @@
 # TronMonitor Agent - tüm hedefler için yerel ikili dosyaları derler ve SHA256 özetlerini yazar.
-# Kullanım: .\build.ps1 [-Version 0.1.0]
+# Kullanım: .\build.ps1 [-Version 1.0.0]
 param(
-  [string]$Version = "0.1.0",
+  [string]$Version = "1.0.0",
   [string]$OutDir = "dist"
 )
 
